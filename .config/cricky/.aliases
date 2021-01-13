@@ -1,0 +1,3 @@
+alias la='ls -a'
+alias ls='ls -G'
+alias ehome='cd /Volumes/SANDISK/christopherkapic/'
