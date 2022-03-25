@@ -9,5 +9,16 @@ echo 'source ~/powerlevel10k/powerlevel10k.zsh-theme' >> ~/.zshrc
 # Install nvm
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
 
-# Install brew
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+read -r -p "Install Homebrew? [y/N] " input
+
+case $input in
+      [yY][eE][sS]|[yY])
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+            ;;
+      [nN][oO]|[nN])
+            exit 1
+            ;;
+      *)
+            exit 1
+            ;;
+esac
