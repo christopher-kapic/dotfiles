@@ -49,7 +49,11 @@ sudo apt-get update
 sudo apt-get install neovim
 
 # install Rust for LunarVim
-curl https://sh.rustup.rs -sSf | sh
+# Official:
+# curl https://sh.rustup.rs -sSf | sh
+
+bash <(curl -s https://sh.rustup.rs)
+
 
 
 # Install LunarVim

@@ -1,5 +1,5 @@
 # Christopher Kapic's Dotfiles
 
 ```
-curl https://raw.githubusercontent.com/christopher-kapic/dotfiles/master/install.sh | bash
+bash <(curl -s https://raw.githubusercontent.com/christopher-kapic/dotfiles/master/install.sh)
 ```
