@@ -20,7 +20,7 @@ nvm install 16
 sudo apt-get install software-properties-common
 sudo add-apt-repository ppa:neovim-ppa/stable
 sudo apt-get update
-sudo apt-get install neovim pip zsh
+sudo apt-get install neovim zsh python3-pip
 
 # install Rust for LunarVim
 # Official:
