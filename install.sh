@@ -30,6 +30,23 @@ case $input in
             ;;
 esac
 
+
+read -r -p "Install Neovim on Ubuntu? [y/N] " input
+
+case $input in
+      [yY][eE][sS]|[yY])
+            sudo apt-get install software-properties-common
+            sudo add-apt-repository ppa:neovim-ppa/stable
+            sudo apt-get update
+            sudo apt-get install neovim
+            ;;
+      [nN][oO]|[nN])
+            ;;
+      *)
+            ;;
+esac
+
+
 # Install LunarVim
 bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh)
 
