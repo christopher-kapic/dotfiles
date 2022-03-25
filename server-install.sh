@@ -39,3 +39,6 @@ bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/
 curl https://get.docker.com | bash
 
 sudo usermod $USER -s /usr/bin/zsh -aG docker
+mkdir $HOME/.cache
+mkdir $HOME/.cache/zsh
+touch $HOME/.cache/zsh/history
