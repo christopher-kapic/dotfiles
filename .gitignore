@@ -1,4 +1,6 @@
-
 gcloud/
 configstore/
 yarn/
+lvim/
+neofetch/
+.DS_Store
