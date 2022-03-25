@@ -37,3 +37,5 @@ bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/
 
 # Install Docker
 curl https://get.docker.com | bash
+
+usermod $USER -s /usr/bin/zsh -aG docker
