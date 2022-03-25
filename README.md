@@ -15,7 +15,7 @@ bash <(curl -s https://raw.githubusercontent.com/christopher-kapic/dotfiles/mast
 sudo apt install zsh
 ```
 
-#### Add user (if $USER is `root`)
+#### Add user (if `$USER` is `root`)
 
 ```
 useradd <user> -m -G sudo -s /usr/bin/zsh
