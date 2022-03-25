@@ -86,7 +86,7 @@ window:
 scrolling:
   # Maximum number of lines in the scrollback buffer.
   # Specifying '0' will disable scrolling.
-  history: 5000
+  history: 10000
 
   # Number of lines the viewport will move for every line scrolled when
   # scrollback is enabled (history > 0).
@@ -108,7 +108,7 @@ scrolling:
 font:
   # Normal (roman) font face
   normal:
-    family: "Hack Nerd Font"
+    family: "MesloLGS NF"
     # Font family
     #
     # Default:
