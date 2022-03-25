@@ -53,8 +53,11 @@ curl https://sh.rustup.rs -sSf | sh
 
 
 # Install LunarVim
-# curl https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh | bash
+# Official:
+# bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh)
+
 bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh)
+# curl https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh | bash
 # curl -o- https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh | bash
 # bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh)
 
