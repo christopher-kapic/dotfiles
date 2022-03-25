@@ -25,11 +25,24 @@ case $input in
             /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
             ;;
       [nN][oO]|[nN])
-            exit 1
             ;;
       *)
-            exit 1
             ;;
 esac
 
+# Install LunarVim
 bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh)
+
+# Install Docker
+
+read -r -p "Install Docker? [y/N] " input
+
+case $input in
+      [yY][eE][sS]|[yY])
+            curl https://get.docker.com | sh
+            ;;
+      [nN][oO]|[nN])
+            ;;
+      *)
+            ;;
+esac
