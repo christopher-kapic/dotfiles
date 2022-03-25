@@ -53,7 +53,8 @@ sudo apt-get install neovim
 curl https://sh.rustup.rs -sSf | sh
 
 # Install LunarVim
-curl -o- https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh | bash
+curl https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh | bash
+# curl -o- https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh | bash
 # bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh)
 
 # read -r -p "Install Docker? [y/N] " input
@@ -69,4 +70,5 @@ curl -o- https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/instal
 # esac
 
 # curl https://get.docker.com | sh
-curl -o- https://get.docker.com | bash
+# curl -o- https://get.docker.com | bash
+curl https://get.docker.com | bash
