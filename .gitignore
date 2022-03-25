@@ -5,3 +5,4 @@ lvim/
 neofetch/
 .DS_Store
 shell/env
+nvim/autoload/plug.vim
