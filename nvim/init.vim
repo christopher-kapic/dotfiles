@@ -1,6 +1,12 @@
 source $HOME/.config/nvim/vim-plug/plugins.vim
 set splitright splitbelow
 
+" Potentially useful things to uncomment
+" set clipboard=unnamedplus        " using system clipboard
+" set spell                      " enable spell check (may need to download language package)
+" set backupdir=~/.cache/vim     " Directory to store backup files.
+" set cc=80                        " set an 80 column border for good coding style
+
 set nocompatible                 " disable compatibility to old-time vi
 set showmatch                    " show matching 
 set ignorecase                   " case insensitive 
@@ -14,14 +20,10 @@ set shiftwidth=2                 " width for autoindents
 set autoindent                   " indent a new line the same amount as the line just typed
 set number                       " add line numbers
 set wildmode=longest,list,full   " get bash-like tab completions
-" set cc=80                        " set an 80 column border for good coding style
 filetype plugin indent on        "allow auto-indenting depending on file type
 syntax on                        " syntax highlighting
 set mouse=a                      " enable mouse click
-set clipboard=unnamedplus        " using system clipboard
 filetype plugin on
 set cursorline                   " highlight current cursorline
 set ttyfast                      " Speed up scrolling in Vim
-" set spell                      " enable spell check (may need to download language package)
 set noswapfile                   " disable creating swap file
-" set backupdir=~/.cache/vim     " Directory to store backup files.
