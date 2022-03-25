@@ -18,48 +18,51 @@ export NVM_DIR="$HOME/.nvm"
 nvm install 16
 nvm use 16
 
-read -r -p "Install Homebrew? [y/N] " input
+# read -r -p "Install Homebrew? [y/N] " input
+# case $input in
+#       [yY][eE][sS]|[yY])
+#             /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+#             ;;
+#       [nN][oO]|[nN])
+#             ;;
+#       *)
+#             ;;
+# esac
 
-case $input in
-      [yY][eE][sS]|[yY])
-            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-            ;;
-      [nN][oO]|[nN])
-            ;;
-      *)
-            ;;
-esac
 
+# read -r -p "Install Neovim on Ubuntu? [y/N] " input
+# case $input in
+#       [yY][eE][sS]|[yY])
+#             sudo apt-get install software-properties-common
+#             sudo add-apt-repository ppa:neovim-ppa/stable
+#             sudo apt-get update
+#             sudo apt-get install neovim
+#             ;;
+#       [nN][oO]|[nN])
+#             ;;
+#       *)
+#             ;;
+# esac
 
-read -r -p "Install Neovim on Ubuntu? [y/N] " input
-
-case $input in
-      [yY][eE][sS]|[yY])
-            sudo apt-get install software-properties-common
-            sudo add-apt-repository ppa:neovim-ppa/stable
-            sudo apt-get update
-            sudo apt-get install neovim
-            ;;
-      [nN][oO]|[nN])
-            ;;
-      *)
-            ;;
-esac
+sudo apt-get install software-properties-common
+sudo add-apt-repository ppa:neovim-ppa/stable
+sudo apt-get update
+sudo apt-get install neovim
 
 
 # Install LunarVim
 bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh)
 
-# Install Docker
+# read -r -p "Install Docker? [y/N] " input
 
-read -r -p "Install Docker? [y/N] " input
+# case $input in
+#       [yY][eE][sS]|[yY])
+#             curl https://get.docker.com | sh
+#             ;;
+#       [nN][oO]|[nN])
+#             ;;
+#       *)
+#             ;;
+# esac
 
-case $input in
-      [yY][eE][sS]|[yY])
-            curl https://get.docker.com | sh
-            ;;
-      [nN][oO]|[nN])
-            ;;
-      *)
-            ;;
-esac
+curl https://get.docker.com | sh
