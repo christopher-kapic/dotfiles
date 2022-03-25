@@ -47,8 +47,6 @@ plugins=(git)
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 autoload -U colors && colors
-PS1='%F{028}%T %F{cyan}/%c%F{white}: '
-RPROMPT='%F{cyan}%n@%m%F{white}'
 HISTSIZE=10000000
 SAVEHIST=10000000
 HISTFILE=~/.cache/zsh/history
