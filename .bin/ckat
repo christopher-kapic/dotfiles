@@ -1,0 +1,10 @@
+#!/bin/bash
+
+for entry in ./*
+do
+echo "file '$entry'" >> files.txt
+done
+
+nvim files.txt
+
+ffmpeg -f concat -safe 0 -i files.txt -c copy output.mkv

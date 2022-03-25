@@ -1,0 +1,10 @@
+#!/bin/bash
+
+figlet "update" | lolcat
+brew update
+figlet "upgrade" | lolcat
+brew upgrade
+figlet "rust" | lolcat
+rustup update
+figlet "npm" | lolcat
+npm update -g
