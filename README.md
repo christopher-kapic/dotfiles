@@ -9,16 +9,10 @@ bash <(curl -s https://raw.githubusercontent.com/christopher-kapic/dotfiles/mast
 
 ### Ubuntu Install (for servers)
 
-#### Install ZSH
-
-```
-sudo apt install zsh
-```
-
 #### Add user (if `$USER` is `root`)
 
 ```
-useradd <user> -m -G sudo -s /usr/bin/zsh
+useradd <user> -m -G sudo -s /usr/bin/bash # will be zsh after script
 passwd <user>
 su <user>
 ```
