@@ -49,9 +49,12 @@ sudo add-apt-repository ppa:neovim-ppa/stable
 sudo apt-get update
 sudo apt-get install neovim
 
+# install Rust for LunarVim
+curl https://sh.rustup.rs -sSf | sh
 
 # Install LunarVim
-bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh)
+curl -o- https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh | bash
+# bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh)
 
 # read -r -p "Install Docker? [y/N] " input
 
@@ -65,4 +68,5 @@ bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/
 #             ;;
 # esac
 
-curl https://get.docker.com | sh
+# curl https://get.docker.com | sh
+curl -o- https://get.docker.com | bash
