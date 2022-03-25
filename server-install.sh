@@ -17,32 +17,6 @@ export NVM_DIR="$HOME/.nvm"
 # Install NodeJS 16
 nvm install 16
 
-# read -r -p "Install Homebrew? [y/N] " input
-# case $input in
-#       [yY][eE][sS]|[yY])
-#             /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-#             ;;
-#       [nN][oO]|[nN])
-#             ;;
-#       *)
-#             ;;
-# esac
-
-
-# read -r -p "Install Neovim on Ubuntu? [y/N] " input
-# case $input in
-#       [yY][eE][sS]|[yY])
-#             sudo apt-get install software-properties-common
-#             sudo add-apt-repository ppa:neovim-ppa/stable
-#             sudo apt-get update
-#             sudo apt-get install neovim
-#             ;;
-#       [nN][oO]|[nN])
-#             ;;
-#       *)
-#             ;;
-# esac
-
 sudo apt-get install software-properties-common
 sudo add-apt-repository ppa:neovim-ppa/stable
 sudo apt-get update
@@ -59,25 +33,7 @@ source $HOME/.cargo/env
 
 # Install LunarVim
 # Official:
-# bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh)
-
 bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh)
-# curl https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh | bash
-# curl -o- https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh | bash
-# bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh)
 
-# read -r -p "Install Docker? [y/N] " input
-
-# case $input in
-#       [yY][eE][sS]|[yY])
-#             curl https://get.docker.com | sh
-#             ;;
-#       [nN][oO]|[nN])
-#             ;;
-#       *)
-#             ;;
-# esac
-
-# curl https://get.docker.com | sh
-# curl -o- https://get.docker.com | bash
+# Install Docker
 curl https://get.docker.com | bash
