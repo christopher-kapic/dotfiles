@@ -16,7 +16,6 @@ export NVM_DIR="$HOME/.nvm"
 
 # Install NodeJS 16
 nvm install 16
-nvm use 16
 
 # read -r -p "Install Homebrew? [y/N] " input
 # case $input in
@@ -52,8 +51,10 @@ sudo apt-get install neovim
 # install Rust for LunarVim
 curl https://sh.rustup.rs -sSf | sh
 
+
 # Install LunarVim
-curl https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh | bash
+# curl https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh | bash
+bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh)
 # curl -o- https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh | bash
 # bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh)
 
