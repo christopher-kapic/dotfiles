@@ -1,5 +1,10 @@
 #!/bin/bash
 
+sudo apt-get install software-properties-common
+sudo add-apt-repository ppa:neovim-ppa/stable
+sudo apt-get update
+sudo apt-get install neovim zsh python3-pip build-essential git
+
 git clone --depth=1 https://github.com/christopher-kapic/dotfiles.git ~/.config
 cp ~/.config/zsh/.zshrc ~/.zshrc
 
@@ -16,11 +21,6 @@ export NVM_DIR="$HOME/.nvm"
 
 # Install NodeJS 16
 nvm install 16
-
-sudo apt-get install software-properties-common
-sudo add-apt-repository ppa:neovim-ppa/stable
-sudo apt-get update
-sudo apt-get install neovim zsh python3-pip build-essential
 
 # install Rust for LunarVim
 # Official:
