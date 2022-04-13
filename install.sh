@@ -43,10 +43,10 @@ nvm install 16
 #             ;;
 # esac
 
-sudo apt-get install software-properties-common
-sudo add-apt-repository ppa:neovim-ppa/stable
-sudo apt-get update
-sudo apt-get install neovim
+# sudo apt-get install software-properties-common
+# sudo add-apt-repository ppa:neovim-ppa/stable
+# sudo apt-get update
+# sudo apt-get install neovim
 
 # install Rust for LunarVim
 # Official:
@@ -80,4 +80,4 @@ bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/
 
 # curl https://get.docker.com | sh
 # curl -o- https://get.docker.com | bash
-curl https://get.docker.com | bash
+# curl https://get.docker.com | bash
