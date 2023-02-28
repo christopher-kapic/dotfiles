@@ -1,0 +1,29 @@
+{
+    "workbench.colorTheme": "Lucario",
+    "workbench.iconTheme": "material-icon-theme",
+    "[astro]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "svelte.enable-ts-plugin": true,
+    "svelte.plugin.svelte.note-new-transformation": false,
+    "editor.tabSize": 2,
+    "[typescriptreact]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[typescript]": {
+        "editor.defaultFormatter": "vscode.typescript-language-features"
+    },
+    "[json]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[javascript]": {
+        "editor.defaultFormatter": "vscode.typescript-language-features"
+    },
+    "editor.inlineSuggest.enabled": true,
+    "extensions.ignoreRecommendations": true,
+    "[python]": {
+        "editor.formatOnType": true
+    },
+    "prettier.singleAttributePerLine": true,
+    "editor.formatOnSave": true
+}

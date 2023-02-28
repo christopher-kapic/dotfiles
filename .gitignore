@@ -18,3 +18,7 @@ joplin-desktop/database.sqlite-journal
 joplin-desktop/log.txt
 
 gtk-2.0/
+
+vscode/User/globalStorage/
+vscode/User/History/
+vscode/User/workspaceStorage/
