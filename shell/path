@@ -1,4 +1,5 @@
 export PATH="$PATH:$HOME/.local/bin"
 export PATH="$PATH:$HOME/.config/bin"
 export PATH="$PATH:/opt/homebrew/bin"
-export PATH="/opt/homebrew/opt/gnu-sed/libexec/gnubin:$PATH"
+export PATH="/opt/homebrew/opt/gnu-sed/libexec/gnubin:$PATH" # gsed as sed on m1
+export PATH="/usr/local/opt/gnu-sed/libexec/gnubin:$PATH" # gsed as sed on intel
