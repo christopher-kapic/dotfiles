@@ -7,4 +7,5 @@ brew upgrade
 figlet "rust" | lolcat
 rustup update
 figlet "npm" | lolcat
+find ~/.nvm/versions -name '.DS_Store' -type f -delete
 npm update -g

@@ -6,3 +6,15 @@ neofetch/
 .DS_Store
 shell/env
 nvim/autoload/plug.vim
+gh/**/*
+
+stripe/
+
+joplin-desktop/cache/
+joplin-desktop/resources/
+joplin-desktop/tmp/
+joplin-desktop/database.sqlite
+joplin-desktop/database.sqlite-journal
+joplin-desktop/log.txt
+
+gtk-2.0/
