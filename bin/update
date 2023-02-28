@@ -8,8 +8,4 @@ figlet "rust" | lolcat
 rustup update
 figlet "npm" | lolcat
 find ~/.nvm/versions -name '.DS_Store' -type f -delete
-<<<<<<< HEAD
 npm update -g
-=======
-npm update -g
->>>>>>> fc5afc854472e4cba256f38d43788bb610dca9e4
