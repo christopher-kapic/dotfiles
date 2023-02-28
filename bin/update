@@ -23,3 +23,7 @@ rustup update
 figlet "npm" | lolcat
 find ~/.nvm/versions -name '.DS_Store' -type f -delete
 npm update -g
+
+figlet "dotfiles" | lolcat
+cd ~/.config
+git checkout master; git pull;
