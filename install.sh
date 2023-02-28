@@ -19,16 +19,33 @@ export NVM_DIR="$HOME/.nvm"
 # Install NodeJS 16
 nvm install 16
 
-# read -r -p "Install Homebrew? [y/N] " input
-# case $input in
-#       [yY][eE][sS]|[yY])
-#             /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-#             ;;
-#       [nN][oO]|[nN])
-#             ;;
-#       *)
-#             ;;
-# esac
+if ! command -v brew &> /dev/null
+then
+    echo "homebrew could not be found - installing now..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    exit
+fi
+
+if ! command -v figlet &> /dev/null
+then
+    echo "figlet could not be found - installing now..."
+    brew install figlet
+    exit
+fi
+
+if ! command -v lolcat &> /dev/null
+then
+    echo "lolcat could not be found - installing now..."
+    brew install lolcat
+    exit
+fi
+
+if ! command -v gsed &> /dev/null
+then
+    echo "gsed (gnu-sed) could not be found - installing now..."
+    brew install gsed
+    exit
+fi
 
 # install Rust for LunarVim
 # Official:

@@ -1,4 +1,4 @@
-export PATH="$PATH:/usr/local/sbin"
 export PATH="$PATH:$HOME/.local/bin"
 export PATH="$PATH:$HOME/.config/bin"
 export PATH="$PATH:/opt/homebrew/bin"
+export PATH="/opt/homebrew/opt/gnu-sed/libexec/gnubin:$PATH"

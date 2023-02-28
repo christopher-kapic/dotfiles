@@ -1,5 +1,19 @@
 #!/bin/bash
 
+if ! command -v figlet &> /dev/null
+then
+    echo "figlet could not be found - installing now..."
+    brew install figlet
+    exit
+fi
+
+if ! command -v lolcat &> /dev/null
+then
+    echo "lolcat could not be found - installing now..."
+    brew install lolcat
+    exit
+fi
+
 figlet "update" | lolcat
 brew update
 figlet "upgrade" | lolcat
