@@ -9,7 +9,7 @@ git clone --depth=1 https://github.com/christopher-kapic/dotfiles.git ~/.config
 cp ~/.config/zsh/.zshrc ~/.zshrc
 
 git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/powerlevel10k
-echo 'source ~/powerlevel10k/powerlevel10k.zsh-theme' >> ~/.zshrc
+echo '\nsource ~/powerlevel10k/powerlevel10k.zsh-theme' >> ~/.zshrc
 
 cp $HOME/.config/fonts/* $HOME/Library/Fonts
 
