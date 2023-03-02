@@ -29,5 +29,4 @@ npm update -g
 figlet "dotfiles" | lolcat
 cd ~/.config
 git checkout master; git pull;
-
-cp -r ~/Library/Application\ Support/Code/User .config/vscode/
+# cp -r ~/Library/Application\ Support/Code/User .config/vscode/
