@@ -20,6 +20,8 @@ figlet "upgrade" | lolcat
 brew upgrade
 figlet "rust" | lolcat
 rustup update
+figlet "LunarVim" | lolcat
+lvim +LvimUpdate +q
 figlet "npm" | lolcat
 find ~/.nvm/versions -name '.DS_Store' -type f -delete
 npm update -g
@@ -27,3 +29,5 @@ npm update -g
 figlet "dotfiles" | lolcat
 cd ~/.config
 git checkout master; git pull;
+
+cp -r ~/Library/Application\ Support/Code/User .config/vscode/

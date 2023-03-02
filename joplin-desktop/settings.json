@@ -36,7 +36,7 @@
 	"editor.keyboardMode": "vim",
 	"dateFormat": "MM/DD/YY",
 	"timeFormat": "h:mm A",
-	"editor.codeView": false,
+	"editor.codeView": true,
 	"richTextBannerDismissed": true,
 	"spellChecker.languages": [
 		"en-US"
