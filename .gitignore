@@ -1,7 +1,7 @@
 gcloud/
 configstore/
 yarn/
-lvim/
+lvim/plugin/
 neofetch/
 .DS_Store
 shell/env

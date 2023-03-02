@@ -109,6 +109,7 @@ font:
   # Normal (roman) font face
   normal:
     family: "MesloLGS NF"
+    #family: "Droid Sans Mono for Powerline Nerd Font Complete.otf"
     # Font family
     #
     # Default:
