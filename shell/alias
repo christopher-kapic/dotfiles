@@ -1,3 +1,6 @@
 alias la='ls -a'
 alias lg='ls -G'
 alias tf='terraform'
+alias vssh='gcloud compute instances start code-ssh'
+alias vsshd='gcloud compute instances stop code-ssh'
+alias castro='python3 /Users/christopherkapic/Projects/website-converter/main.py'
