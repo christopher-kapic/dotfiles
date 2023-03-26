@@ -24,39 +24,41 @@ then
   nvm install 18
 fi
 
-
 if ! command -v brew &> /dev/null
 then
-    echo "homebrew could not be found - installing now..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    exit
+  echo "homebrew could not be found - installing now..."
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
 
 if ! command -v figlet &> /dev/null
 then
-    echo "figlet could not be found - installing now..."
-    brew install figlet
-    exit
+  echo "figlet could not be found - installing now..."
+  brew install figlet
 fi
 
 if ! command -v lolcat &> /dev/null
 then
-    echo "lolcat could not be found - installing now..."
-    brew install lolcat
-    exit
+  echo "lolcat could not be found - installing now..."
+  brew install lolcat
 fi
 
 if ! command -v gsed &> /dev/null
 then
-    echo "gsed (gnu-sed) could not be found - installing now..."
-    brew install gsed
-    exit
+  echo "gsed (gnu-sed) could not be found - installing now..."
+  brew install gsed
 fi
 
-bash <(curl -s https://sh.rustup.rs)
-source $HOME/.cargo/env
+if ! command -v rustc &> /dev/null
+then
+  echo "rust could not be found - installing now..."
+  bash <(curl -s https://sh.rustup.rs)
+  source $HOME/.cargo/env
+fi
 
-bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh)
+if ! command -v lvim &> /dev/null
+then
+  bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh)
+fi
 
 echo "Configuring some settings..."
 echo "Set dock speed to 0.2s (1/2 of Doherty threshold)"
