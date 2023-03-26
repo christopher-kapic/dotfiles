@@ -3,13 +3,16 @@
 echo "Installing MacOS dotfiles..."
 
 
-if [ -d "~/.config" ]; then
+if ! [ -d "~/.config" ]; then
   git clone --depth=1 https://github.com/christopher-kapic/dotfiles.git ~/.config
+fi
+
+if ! [ -e "~/.zshrc" ]; then
   cp ~/.config/zsh/.zshrc ~/.zshrc
 fi
 
 
-if [ -d "~/powerlevel10k" ]; then
+if ! [ -d "~/powerlevel10k" ]; then
   git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/powerlevel10k
 fi
 
@@ -18,6 +21,7 @@ cp $HOME/.config/fonts/* $HOME/Library/Fonts
 # Install nvm
 if ! command -v nvm &> /dev/null
 then
+  echo "nvm could not be found - installing now"
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
   export NVM_DIR="$HOME/.nvm"
   [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
@@ -26,7 +30,7 @@ fi
 
 if ! command -v node &> /dev/null
 then
-  # Install NodeJS 16
+  echo "nvm could not be found - installing now"
   nvm install 18
 fi
 
