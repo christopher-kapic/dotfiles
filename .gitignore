@@ -2,6 +2,7 @@ gcloud/
 configstore/
 yarn/
 lvim/plugin/
+lvim/lazy-lock.json
 neofetch/
 .DS_Store
 shell/env
