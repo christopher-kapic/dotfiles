@@ -70,6 +70,20 @@ then
   bash <(curl -s https://raw.githubusercontent.com/lunarvim/lunarvim/master/utils/installer/install.sh)
 fi
 
-echo "Configuring some settings..."
-echo "Set dock speed to 0.2s (1/2 of Doherty threshold)"
-defaults write com.apple.dock autohide-delay -float 0; defaults write com.apple.dock autohide-time-modifier -float 0.2;killall Dock
+figlet "Configuring some settings..." | lolcat
+echo "Set dock to autohide with speed to 0.2s (1/2 of Doherty threshold)"
+defaults write com.apple.dock autohide -bool true
+defaults write com.apple.dock autohide-delay -float 0
+defaults write com.apple.dock autohide-time-modifier -float 0.2
+killall Dock
+
+echo "Setting the dock to the left side of the screen (there is more horizontal than vertical real estate these days)"
+defaults write com.apple.dock orientation left; killall Dock
+
+echo "Setting the bottom right hot corner to show desktop"
+defaults write com.apple.dock wvous-br-corner -int 4
+defaults write com.apple.dock wvous-br-modifier -int 0
+killall Dock
+
+echo "Setting scroll direction natural off"
+defaults write -g com.apple.swipescrolldirection -bool false
