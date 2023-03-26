@@ -2,10 +2,16 @@
 
 echo "Installing MacOS dotfiles..."
 
-git clone --depth=1 https://github.com/christopher-kapic/dotfiles.git ~/.config
-cp ~/.config/zsh/.zshrc ~/.zshrc
 
-git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/powerlevel10k
+if [ -d "~/.config" ]; then
+  git clone --depth=1 https://github.com/christopher-kapic/dotfiles.git ~/.config
+  cp ~/.config/zsh/.zshrc ~/.zshrc
+fi
+
+
+if [ -d "~/powerlevel10k" ]; then
+  git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/powerlevel10k
+fi
 
 cp $HOME/.config/fonts/* $HOME/Library/Fonts
 
