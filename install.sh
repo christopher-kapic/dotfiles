@@ -2,7 +2,6 @@
 
 echo "Installing MacOS dotfiles..."
 
-
 if ! [ -d "~/.config" ]; then
   git clone --depth=1 https://github.com/christopher-kapic/dotfiles.git ~/.config
 fi
@@ -87,3 +86,6 @@ killall Dock
 
 echo "Setting scroll direction natural off"
 defaults write -g com.apple.swipescrolldirection -bool false
+
+figlet "Installing xcode tools (this will take a while)" | lolcat
+xcode-select --install
