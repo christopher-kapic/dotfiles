@@ -6,6 +6,7 @@ sudo apt-get update
 sudo apt-get install neovim zsh python3-pip build-essential git
 
 git clone --depth=1 https://github.com/christopher-kapic/dotfiles.git ~/.config
+touch ~/.config/shell/env
 cp ~/.config/zsh/.zshrc ~/.zshrc
 
 git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/powerlevel10k
@@ -19,8 +20,8 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
-# Install NodeJS 16
-nvm install 16
+# Install NodeJS 20
+nvm install 20
 
 # install Rust for LunarVim
 # Official:
@@ -28,8 +29,6 @@ nvm install 16
 
 bash <(curl -s https://sh.rustup.rs)
 source $HOME/.cargo/env
-
-
 
 # Install LunarVim
 # Official:
