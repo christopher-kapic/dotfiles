@@ -30,7 +30,7 @@ fi
 if ! command -v node &> /dev/null
 then
   echo "nvm could not be found - installing now"
-  nvm install 18
+  nvm install 20
 fi
 
 if ! command -v brew &> /dev/null
