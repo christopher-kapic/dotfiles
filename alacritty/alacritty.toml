@@ -1,0 +1,122 @@
+[env]
+TERM = "xterm-256color"
+
+[window]
+opacity = 0.88
+padding.x = 10
+padding.y = 10
+blur = true
+decorations = "buttonless"
+title = "Alacritty"
+
+[scrolling]
+history = 10000
+
+[font.normal]
+family = "MesloLGS NF"
+style = "Regular"
+
+[font.bold]
+style = "Bold"
+
+[font.italic]
+style = "Italic"
+
+[font.bold_italic]
+style = "Bold Italic"
+
+[font]
+size = 14.0
+offset.x = 0
+offset.y = 1
+
+[colors]
+draw_bold_text_with_bright_colors = true
+
+[colors.primary]
+background = "0x14161f"
+# background = "0x282d3f"
+foreground = "0xffffff"
+
+[colors.cursor]
+text = "0x000000"
+cursor = "0xdddddd"
+[colors.selection]
+text = "0xbbc2cf"
+background = "0x282e34"
+
+[colors.normal]
+black = "0x1c1e2b"
+red = "0xf88c6c"
+green = "0x70bf47"
+yellow = "0xffcc02"
+blue = "0x82a9fe"
+magenta = "0xbd2bac"
+cyan = "0x88ddff"
+white = "0xf0f0f0"
+
+[colors.bright]
+black = "0x242424"
+red = "0xd14c43"
+green = "0x59c95b"
+yellow = "0xd6e64c"
+blue = "0x2b63ff"
+magenta = "0xf08dde"
+cyan = "0x73e0e6"
+white = "0xffffff"
+
+[shell]
+program = "/bin/zsh"
+args = ["--login"]
+
+[[keyboard.bindings]]
+key = "V"
+mods = "Control|Shift"
+action = "Paste"
+
+[[keyboard.bindings]]
+key = "C"
+mods = "Control|Shift"
+action = "Copy"
+
+[[keyboard.bindings]]
+key = "Insert"
+mods = "Shift"
+action = "PasteSelection"
+
+[[keyboard.bindings]]
+key = "Paste"
+action = "Paste"
+
+[[keyboard.bindings]]
+key = "Copy"
+action = "Copy"
+
+[[keyboard.bindings]]
+key = "PageUp"
+mods = "Shift"
+action = "ScrollPageUp"
+mode = "~Alt"
+
+[[keyboard.bindings]]
+key = "PageDown"
+mods = "Shift"
+action = "ScrollPageDown"
+mode = "~Alt"
+
+[[keyboard.bindings]]
+key = "Home"
+mods = "Shift"
+action = "ScrollToTop"
+mode = "~Alt"
+
+[[keyboard.bindings]]
+key = "End"
+mods = "Shift"
+action = "ScrollToBottom"
+mode = "~Alt"
+
+[[keyboard.bindings]]
+key = "N"
+mods = "Control"
+action = "CreateNewWindow"
