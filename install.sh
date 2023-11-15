@@ -4,6 +4,7 @@ echo "Installing MacOS dotfiles..."
 
 if ! [ -d "~/.config" ]; then
   git clone --depth=1 https://github.com/christopher-kapic/dotfiles.git ~/.config
+  touch ~/.config/shell/env
 fi
 
 if ! [ -e "~/.zshrc" ]; then
