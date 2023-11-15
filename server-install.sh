@@ -6,7 +6,6 @@ sudo apt-get update
 sudo apt-get install neovim zsh python3-pip build-essential git
 
 git clone --depth=1 https://github.com/christopher-kapic/dotfiles.git ~/.config
-touch ~/.config/shell/env
 cp ~/.config/zsh/.zshrc ~/.zshrc
 
 git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/powerlevel10k
