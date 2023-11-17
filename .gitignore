@@ -5,7 +5,7 @@ lvim/plugin/
 lvim/lazy-lock.json
 neofetch/
 .DS_Store
-shell/env
+shell/secretenv
 nvim/autoload/plug.vim
 gh/**/*
 
