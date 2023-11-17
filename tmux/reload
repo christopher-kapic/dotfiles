@@ -1,5 +1,4 @@
 #!/bin/bash
 
-cp ~/.config/tmux/.tmux.conf ~/.tmux.conf
-tmux source-file ~/.tmux.conf
+tmux source-file $XDG_CONFIG_HOME/.config/tmux/tmux.conf
 tmux display-message "Reloaded!"
