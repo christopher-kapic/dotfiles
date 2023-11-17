@@ -8,6 +8,7 @@ neofetch/
 shell/secretenv
 nvim/autoload/plug.vim
 gh/**/*
+lazygit/
 
 stripe/
 
