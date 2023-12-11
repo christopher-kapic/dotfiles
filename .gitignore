@@ -24,3 +24,5 @@ gtk-2.0/
 vscode/User/globalStorage/
 vscode/User/History/
 vscode/User/workspaceStorage/
+
+bin/alacritty
