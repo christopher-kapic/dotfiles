@@ -65,7 +65,7 @@ magenta = "0xf08dde"
 cyan = "0x73e0e6"
 white = "0xffffff"
 
-[shell]
+[terminal.shell]
 program = "/bin/zsh"
 args = ["--login"]
 
