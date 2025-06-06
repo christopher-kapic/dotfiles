@@ -1,3 +1,0 @@
-alias la='ls -a'
-alias lg='ls -G'
-alias tf='terraform'

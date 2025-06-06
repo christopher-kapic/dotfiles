@@ -1,3 +1,10 @@
+# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+# Initialization code that may require console input (password prompts, [y/n]
+# confirmations, etc.) must go above this block; everything else may go below.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
 HYPHEN_INSENSITIVE="true"
 
 # Uncomment the following line to disable auto-setting terminal title.
@@ -47,8 +54,8 @@ plugins=(git)
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 autoload -U colors && colors
-HISTSIZE=10000000
-SAVEHIST=10000000
+HISTSIZE=10000 # 000
+SAVEHIST=10000 # 000
 HISTFILE=~/.cache/zsh/history
 
 autoload -U compinit
@@ -89,14 +96,18 @@ zle -N zle-line-init
 echo -ne '\e[5 q' # Use beam shape cursor on startup.
 preexec() { echo -ne '\e[5 q' ;} # Use beam shape cursor for each new prompt.
 
-source ~/.config/shell/path
-source ~/.config/shell/alias
-source ~/.config/shell/env
-touch ~/.config/shell/secretenv
-source ~/.config/shell/secretenv
+source $HOME/.config/shell/path
+source $HOME/.config/shell/alias
+source $HOME/.config/shell/env
 
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
-source ~/powerlevel10k/powerlevel10k.zsh-theme
+[[ ! -f $HOME/powerlevel10k/powerlevel10k.zsh-theme ]] || source $HOME/powerlevel10k/powerlevel10k.zsh-theme
+
+# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
+[[ ! -f $HOME/.p10k.zsh ]] || source $HOME/.p10k.zsh
+
+# Used to extend .zshrc on an individual-machine basis
+[[ ! -f $HOME/.zshrcx ]] || source $HOME/.zshrcx

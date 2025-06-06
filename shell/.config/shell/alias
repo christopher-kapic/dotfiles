@@ -1,0 +1,5 @@
+alias la='ls -a'
+alias lg='ls -G'
+alias tf='terraform'
+alias nvchad='NVIM_APPNAME=nvchad nvim'
+alias anvim='NVIM_APPNAME=astronvim nvim'

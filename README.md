@@ -3,11 +3,13 @@
 ### MacOS Install
 
 ```
-bash <(curl -s https://raw.githubusercontent.com/christopher-kapic/dotfiles/master/install.sh)
+bash <(curl -s https://raw.githubusercontent.com/christopher-kapic/dotfiles/master/install-macos.sh)
 ```
 
 
 ### Ubuntu Install (for servers)
+
+Note: This script is likely broken as of now. I recently switched to using [GNU stow](https://www.gnu.org/software/stow/) to manage my dotfiles, and I haven't updated the server installation script yet.
 
 #### Add user (if `$USER` is `root`)
 
@@ -22,4 +24,3 @@ su <user>
 ```
 bash <(curl -s https://raw.githubusercontent.com/christopher-kapic/dotfiles/master/server-install.sh)
 ```
-
