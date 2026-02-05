@@ -111,3 +111,18 @@ export NVM_DIR="$HOME/.nvm"
 
 # Used to extend .zshrc on an individual-machine basis
 [[ ! -f $HOME/.zshrcx ]] || source $HOME/.zshrcx
+
+# pnpm
+export PNPM_HOME="/Users/christopherkapic/Library/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+# pnpm end
+
+# bun completions
+[ -s "/Users/christopherkapic/.bun/_bun" ] && source "/Users/christopherkapic/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"

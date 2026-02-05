@@ -8,6 +8,11 @@ then
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
 
+if ! xcode-select -p &> /dev/null; then
+  echo "Installing Xcode Command Line Tools (needed for C compiler / plugin builds; this may take a while)"
+  xcode-select --install
+fi
+
 if ! command -v stow &> /dev/null
 then
   echo "stow could not be found - installing now..."
@@ -30,7 +35,7 @@ cp $HOME/dotfiles/fonts/* $HOME/Library/Fonts
 if ! command -v nvm &> /dev/null
 then
   echo "nvm could not be found - installing now"
-  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
   export NVM_DIR="$HOME/.nvm"
   [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
   [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
@@ -39,7 +44,7 @@ fi
 if ! command -v node &> /dev/null
 then
   echo "node could not be found - installing v20 now"
-  nvm install 20
+  nvm install 25
 fi
 
 if ! command -v gsed &> /dev/null
@@ -53,6 +58,26 @@ then
   echo "rust could not be found - installing now..."
   bash <(curl -s https://sh.rustup.rs)
   source $HOME/.cargo/env
+fi
+
+# Neovim 0.11.5+ required for CKLunarVim
+neovim_ok=
+if command -v nvim &> /dev/null; then
+  nvim_version=$(nvim --version 2>/dev/null | head -1 | sed -n 's/.*v\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\).*/\1 \2 \3/p')
+  read -r maj min pat <<< "$nvim_version"
+  vnum=$((maj*10000 + min*100 + pat))
+  if [ -n "$vnum" ] && [ "$vnum" -ge 1105 ]; then
+    neovim_ok=1
+  fi
+fi
+if [ -z "$neovim_ok" ]; then
+  echo "neovim could not be found or is older than 0.11.5 - installing now..."
+  brew install neovim
+fi
+
+if ! command -v lvim &> /dev/null && ! [ -x "$HOME/.local/bin/lvim" ]; then
+  echo "CKLunarVim (lvim) could not be found - installing now..."
+  bash <(curl -s https://raw.githubusercontent.com/christopher-kapic/CKLunarVim/master/utils/installer/install.sh)
 fi
 
 echo "Configuring some MacOS settings..."
@@ -97,7 +122,3 @@ defaults write NSGlobalDomain "AppleShowAllExtensions" -bool "true"
 defaults write com.apple.finder "_FXSortFoldersFirst" -bool "true"
 defaults write NSGlobalDomain "NSToolbarTitleViewRolloverDelay" -float "0"
 killall Finder
-
-
-echo "Installing xcode tools (this will take a while)"
-xcode-select --install
