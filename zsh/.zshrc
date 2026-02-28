@@ -125,3 +125,8 @@ esac
 
 # bun
 export BUN_INSTALL="$HOME/.bun"
+
+# Added by LM Studio CLI (lms)
+export PATH="$PATH:/Users/christopherkapic/.lmstudio/bin"
+# End of LM Studio CLI section
+
