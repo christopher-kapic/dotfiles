@@ -23,7 +23,7 @@ if ! [ -d "$HOME/dotfiles" ]; then
   git clone --depth=1 https://github.com/christopher-kapic/dotfiles.git $HOME/dotfiles
 fi
 
-stow --target=${HOME} $HOME/dotfiles/*/
+cd "$HOME/dotfiles" && stow --target="$HOME" */
 
 if ! [ -d "$HOME/powerlevel10k" ]; then
   git clone --depth=1 https://github.com/romkatv/powerlevel10k.git $HOME/powerlevel10k
