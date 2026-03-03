@@ -23,10 +23,96 @@ if ! [ -d "$HOME/dotfiles" ]; then
   git clone --depth=1 https://github.com/christopher-kapic/dotfiles.git $HOME/dotfiles
 fi
 
-cd "$HOME/dotfiles" && stow --target="$HOME" */
+cd "$HOME/dotfiles"
 
-if ! [ -d "$HOME/powerlevel10k" ]; then
-  git clone --depth=1 https://github.com/romkatv/powerlevel10k.git $HOME/powerlevel10k
+# --- Interactive stow package picker ---
+skip_dirs=(".git" "templates" "fonts")
+
+packages=()
+for d in */; do
+  d="${d%/}"
+  skip=false
+  for s in "${skip_dirs[@]}"; do
+    if [ "$d" = "$s" ]; then skip=true; break; fi
+  done
+  $skip || packages+=("$d")
+done
+
+# Selection state: all selected by default
+selected=()
+for i in "${!packages[@]}"; do selected+=("1"); done
+cursor=0
+total=${#packages[@]}
+
+draw_menu() {
+  # Move cursor up to redraw in place
+  if [ "$1" = "redraw" ]; then
+    printf "\033[%dA" "$((total + 1))"
+  fi
+  echo "Select packages to stow (↑/k up, ↓/j down, space toggle, enter confirm):"
+  for i in "${!packages[@]}"; do
+    if [ "$i" -eq "$cursor" ]; then pointer=">"; else pointer=" "; fi
+    if [ "${selected[$i]}" = "1" ]; then check="[x]"; else check="[ ]"; fi
+    echo " $pointer $check ${packages[$i]}"
+  done
+}
+
+# Save terminal settings and enable raw input
+old_stty=$(stty -g)
+stty raw -echo
+
+draw_menu
+
+while true; do
+  char=$(dd bs=1 count=1 2>/dev/null)
+  case "$char" in
+    $'\x1b')
+      # Read escape sequence
+      dd bs=1 count=1 2>/dev/null  # [
+      arrow=$(dd bs=1 count=1 2>/dev/null)
+      case "$arrow" in
+        A) ((cursor > 0)) && ((cursor--)) ;;  # Up
+        B) ((cursor < total - 1)) && ((cursor++)) ;;  # Down
+      esac
+      ;;
+    k) ((cursor > 0)) && ((cursor--)) ;;
+    j) ((cursor < total - 1)) && ((cursor++)) ;;
+    " ")
+      if [ "${selected[$cursor]}" = "1" ]; then
+        selected[$cursor]="0"
+      else
+        selected[$cursor]="1"
+      fi
+      ;;
+    "") break ;;  # Enter
+  esac
+  draw_menu "redraw"
+done
+
+# Restore terminal
+stty "$old_stty"
+echo ""
+
+# Stow selected packages
+stowed_zsh=false
+for i in "${!packages[@]}"; do
+  if [ "${selected[$i]}" = "1" ]; then
+    echo "Stowing ${packages[$i]}..."
+    stow --target="$HOME" "${packages[$i]}"
+    if [ "${packages[$i]}" = "zsh" ]; then stowed_zsh=true; fi
+  fi
+done
+
+# Copy zshrc template if zsh was stowed and ~/.zshrc doesn't exist
+if $stowed_zsh && ! [ -f "$HOME/.zshrc" ]; then
+  echo "Copying zshrc template to ~/.zshrc (edit for machine-specific config)"
+  cp "$HOME/dotfiles/templates/zshrc" "$HOME/.zshrc"
+elif $stowed_zsh && [ -f "$HOME/.zshrc" ]; then
+  echo "~/.zshrc already exists, skipping template copy"
+fi
+
+if ! [ -d "$HOME/.powerlevel10k" ]; then
+  git clone --depth=1 https://github.com/romkatv/powerlevel10k.git $HOME/.powerlevel10k
 fi
 
 cp $HOME/dotfiles/fonts/* $HOME/Library/Fonts

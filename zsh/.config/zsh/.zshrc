@@ -100,33 +100,8 @@ source $HOME/.config/shell/path
 source $HOME/.config/shell/alias
 source $HOME/.config/shell/env
 
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
-[[ ! -f $HOME/powerlevel10k/powerlevel10k.zsh-theme ]] || source $HOME/powerlevel10k/powerlevel10k.zsh-theme
+[[ ! -f $HOME/.powerlevel10k/powerlevel10k.zsh-theme ]] || source $HOME/.powerlevel10k/powerlevel10k.zsh-theme
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f $HOME/.p10k.zsh ]] || source $HOME/.p10k.zsh
-
-# Used to extend .zshrc on an individual-machine basis
-[[ ! -f $HOME/.zshrcx ]] || source $HOME/.zshrcx
-
-# pnpm
-export PNPM_HOME="/Users/christopherkapic/Library/pnpm"
-case ":$PATH:" in
-  *":$PNPM_HOME:"*) ;;
-  *) export PATH="$PNPM_HOME:$PATH" ;;
-esac
-# pnpm end
-
-# bun completions
-[ -s "/Users/christopherkapic/.bun/_bun" ] && source "/Users/christopherkapic/.bun/_bun"
-
-# bun
-export BUN_INSTALL="$HOME/.bun"
-
-# Added by LM Studio CLI (lms)
-export PATH="$PATH:/Users/christopherkapic/.lmstudio/bin"
-# End of LM Studio CLI section
-
