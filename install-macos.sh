@@ -93,6 +93,9 @@ done
 stty "$old_stty"
 echo ""
 
+# Ensure ~/.local/bin exists as a real directory so stow symlinks individual scripts
+mkdir -p "$HOME/.local/bin"
+
 # Stow selected packages
 stowed_zsh=false
 for i in "${!packages[@]}"; do

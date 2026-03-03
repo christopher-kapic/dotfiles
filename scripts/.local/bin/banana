@@ -1,0 +1,219 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# banana - CLI for Gemini Nano Banana image generation
+# Requires: curl, jq, base64
+# Environment: GEMINI_API_KEY
+
+DEFAULT_MODEL="gemini-3.1-flash-image-preview"
+API_BASE="https://generativelanguage.googleapis.com/v1beta/models"
+
+usage() {
+  cat <<'EOF'
+Usage: banana [OPTIONS] PROMPT
+
+Generate images using Gemini Nano Banana.
+
+Options:
+  -m MODEL        Model to use (default: gemini-3.1-flash-image-preview)
+                  Models: gemini-3.1-flash-image-preview (Nano Banana 2)
+                          gemini-3-pro-image-preview (Nano Banana Pro)
+                          gemini-2.5-flash-image (Nano Banana)
+  -i IMAGE        Input image(s) for editing (can specify multiple times, up to 14)
+  -o OUTPUT       Output file path (default: banana_output.png)
+  -a RATIO        Aspect ratio (default: 1:1)
+                  Options: 1:1, 1:4, 1:8, 2:3, 3:2, 3:4, 4:1, 4:3, 4:5, 5:4, 8:1, 9:16, 16:9, 21:9
+  -s SIZE         Image size/resolution (default: 1K)
+                  Options: 512px, 1K, 2K, 4K
+  -t LEVEL        Thinking level: minimal, high (default: minimal)
+  -g              Enable Google Search grounding
+  --image-search  Enable Google Image Search grounding (3.1 Flash only)
+  --image-only    Return only image, no text
+  -h              Show this help
+
+Examples:
+  banana "A photo of a sunset over mountains"
+  banana -a 16:9 -s 2K "A panoramic landscape"
+  banana -i photo.png "Add a wizard hat to the cat"
+  banana -i dress.png -i model.png "Put the dress on the model"
+  banana -g "Visualize today's weather in NYC"
+EOF
+  exit 0
+}
+
+die() { echo "Error: $*" >&2; exit 1; }
+
+# Defaults
+model="$DEFAULT_MODEL"
+output="banana_output.png"
+aspect_ratio=""
+image_size=""
+thinking_level=""
+grounding=false
+image_search=false
+image_only=false
+declare -a input_images=()
+
+# Parse options
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -m) model="$2"; shift 2 ;;
+    -i) input_images+=("$2"); shift 2 ;;
+    -o) output="$2"; shift 2 ;;
+    -a) aspect_ratio="$2"; shift 2 ;;
+    -s) image_size="$2"; shift 2 ;;
+    -t) thinking_level="$2"; shift 2 ;;
+    -g) grounding=true; shift ;;
+    --image-search) image_search=true; shift ;;
+    --image-only) image_only=true; shift ;;
+    -h|--help) usage ;;
+    -*) die "Unknown option: $1" ;;
+    *) break ;;
+  esac
+done
+
+prompt="${*:?Prompt is required. Use -h for help.}"
+
+# Validate
+[[ -z "${GEMINI_API_KEY:-}" ]] && die "GEMINI_API_KEY environment variable is not set"
+command -v jq >/dev/null || die "jq is required but not installed"
+command -v curl >/dev/null || die "curl is required but not installed"
+
+for img in "${input_images[@]}"; do
+  [[ -f "$img" ]] || die "Input image not found: $img"
+done
+
+# Build parts array
+parts_json="[]"
+
+# Add text prompt first (before images for generation, but order can vary)
+parts_json=$(echo "$parts_json" | jq --arg text "$prompt" '. + [{"text": $text}]')
+
+# Add input images as base64
+for img in "${input_images[@]}"; do
+  mime_type="image/png"
+  case "${img,,}" in
+    *.jpg|*.jpeg) mime_type="image/jpeg" ;;
+    *.png) mime_type="image/png" ;;
+    *.gif) mime_type="image/gif" ;;
+    *.webp) mime_type="image/webp" ;;
+  esac
+  b64_data=$(base64 -w 0 "$img" 2>/dev/null || base64 -i "$img" 2>/dev/null)
+  parts_json=$(echo "$parts_json" | jq \
+    --arg mime "$mime_type" \
+    --arg data "$b64_data" \
+    '. + [{"inline_data": {"mime_type": $mime, "data": $data}}]')
+done
+
+# Build generationConfig
+gen_config="{}"
+
+# Response modalities
+if [[ "$image_only" == true ]]; then
+  gen_config=$(echo "$gen_config" | jq '. + {"responseModalities": ["IMAGE"]}')
+else
+  gen_config=$(echo "$gen_config" | jq '. + {"responseModalities": ["TEXT", "IMAGE"]}')
+fi
+
+# Image config
+image_config="{}"
+if [[ -n "$aspect_ratio" ]]; then
+  image_config=$(echo "$image_config" | jq --arg ar "$aspect_ratio" '. + {"aspectRatio": $ar}')
+fi
+if [[ -n "$image_size" ]]; then
+  image_config=$(echo "$image_config" | jq --arg sz "$image_size" '. + {"imageSize": $sz}')
+fi
+if [[ "$image_config" != "{}" ]]; then
+  gen_config=$(echo "$gen_config" | jq --argjson ic "$image_config" '. + {"imageConfig": $ic}')
+fi
+
+# Thinking config
+if [[ -n "$thinking_level" ]]; then
+  thinking_config=$(jq -n --arg level "$thinking_level" '{"thinkingLevel": ($level | ascii_upcase | .[0:1] + ($level | ascii_downcase | .[1:])), "includeThoughts": false}')
+  gen_config=$(echo "$gen_config" | jq --argjson tc "$thinking_config" '. + {"thinkingConfig": $tc}')
+fi
+
+# Build tools array
+tools_json="null"
+if [[ "$image_search" == true ]]; then
+  tools_json='[{"google_search": {"searchTypes": {"webSearch": {}, "imageSearch": {}}}}]'
+elif [[ "$grounding" == true ]]; then
+  tools_json='[{"google_search": {}}]'
+fi
+
+# Build full request body
+request_body=$(jq -n \
+  --argjson parts "$parts_json" \
+  --argjson gen_config "$gen_config" \
+  --argjson tools "$tools_json" \
+  '{
+    "contents": [{"parts": $parts}],
+    "generationConfig": $gen_config
+  } + (if $tools != null then {"tools": $tools} else {} end)')
+
+# Make API call
+url="${API_BASE}/${model}:generateContent"
+
+echo "Generating image with ${model}..." >&2
+
+response=$(curl -s -w "\n%{http_code}" -X POST "$url" \
+  -H "x-goog-api-key: $GEMINI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "$request_body")
+
+http_code=$(echo "$response" | tail -1)
+body=$(echo "$response" | sed '$d')
+
+if [[ "$http_code" -ne 200 ]]; then
+  echo "API request failed (HTTP $http_code):" >&2
+  echo "$body" | jq -r '.error.message // .' >&2
+  exit 1
+fi
+
+# Extract parts from response
+image_saved=false
+text_output=""
+
+# Count parts
+num_parts=$(echo "$body" | jq '[.candidates[0].content.parts[] | select(.thought != true)] | length')
+
+for ((idx=0; idx<num_parts; idx++)); do
+  part=$(echo "$body" | jq ".candidates[0].content.parts | [.[] | select(.thought != true)][$idx]")
+
+  has_text=$(echo "$part" | jq -r 'has("text")')
+  has_image=$(echo "$part" | jq -r 'has("inline_data")')
+
+  if [[ "$has_text" == "true" ]]; then
+    text=$(echo "$part" | jq -r '.text')
+    text_output+="$text"
+  fi
+
+  if [[ "$has_image" == "true" ]]; then
+    mime=$(echo "$part" | jq -r '.inline_data.mime_type')
+    data=$(echo "$part" | jq -r '.inline_data.data')
+
+    # Determine output filename for multiple images
+    if [[ "$image_saved" == true ]]; then
+      ext="${output##*.}"
+      base="${output%.*}"
+      save_path="${base}_${idx}.${ext}"
+    else
+      save_path="$output"
+    fi
+
+    echo "$data" | base64 -d > "$save_path" 2>/dev/null || echo "$data" | base64 -D > "$save_path" 2>/dev/null
+    echo "Saved: $save_path (${mime})" >&2
+    image_saved=true
+  fi
+done
+
+if [[ -n "$text_output" ]]; then
+  echo "$text_output"
+fi
+
+if [[ "$image_saved" == false ]]; then
+  echo "Warning: No image was returned in the response." >&2
+  echo "Full response:" >&2
+  echo "$body" | jq '.' >&2
+  exit 1
+fi
