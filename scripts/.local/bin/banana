@@ -181,7 +181,7 @@ for ((idx=0; idx<num_parts; idx++)); do
   part=$(echo "$body" | jq ".candidates[0].content.parts | [.[] | select(.thought != true)][$idx]")
 
   has_text=$(echo "$part" | jq -r 'has("text")')
-  has_image=$(echo "$part" | jq -r 'has("inline_data")')
+  has_image=$(echo "$part" | jq -r 'has("inlineData")')
 
   if [[ "$has_text" == "true" ]]; then
     text=$(echo "$part" | jq -r '.text')
@@ -189,8 +189,8 @@ for ((idx=0; idx<num_parts; idx++)); do
   fi
 
   if [[ "$has_image" == "true" ]]; then
-    mime=$(echo "$part" | jq -r '.inline_data.mime_type')
-    data=$(echo "$part" | jq -r '.inline_data.data')
+    mime=$(echo "$part" | jq -r '.inlineData.mimeType')
+    data=$(echo "$part" | jq -r '.inlineData.data')
 
     # Determine output filename for multiple images
     if [[ "$image_saved" == true ]]; then
