@@ -278,7 +278,6 @@ echo ""
 
 # Install selected optional packages
 apt_pkgs=()
-npm_pkgs=()
 install_gh=false
 install_lazygit=false
 
@@ -287,8 +286,8 @@ for i in "${!opt_packages[@]}"; do
     case "${opt_packages[$i]}" in
       gh)          install_gh=true ;;
       lazygit)     install_lazygit=true ;;
-      opencode)    npm_pkgs+=("opencode") ;;
-      claude-code) npm_pkgs+=("@anthropic-ai/claude-code") ;;
+      opencode)    echo "Installing OpenCode..."; curl -fsSL https://opencode.ai/install | bash ;;
+      claude-code) echo "Installing Claude Code..."; curl -fsSL https://claude.ai/install.sh | bash ;;
       *)           apt_pkgs+=("${opt_packages[$i]}") ;;
     esac
   fi
@@ -324,11 +323,6 @@ if $install_lazygit; then
   else
     echo "lazygit already installed."
   fi
-fi
-
-if [ ${#npm_pkgs[@]} -gt 0 ]; then
-  echo "Installing npm packages: ${npm_pkgs[*]}"
-  npm install -g "${npm_pkgs[@]}"
 fi
 
 # =============================================================================

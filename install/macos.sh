@@ -232,12 +232,10 @@ echo ""
 
 # Install selected optional packages
 brew_pkgs=()
-npm_pkgs=()
 for i in "${!opt_packages[@]}"; do
   if [ "${opt_selected[$i]}" = "1" ]; then
     case "${opt_packages[$i]}" in
-      opencode)    npm_pkgs+=("opencode") ;;
-      claude-code) npm_pkgs+=("@anthropic-ai/claude-code") ;;
+      claude-code) echo "Installing Claude Code..."; curl -fsSL https://claude.ai/install.sh | bash ;;
       *)           brew_pkgs+=("${opt_packages[$i]}") ;;
     esac
   fi
@@ -246,11 +244,6 @@ done
 if [ ${#brew_pkgs[@]} -gt 0 ]; then
   echo "Installing brew packages: ${brew_pkgs[*]}"
   brew install "${brew_pkgs[@]}"
-fi
-
-if [ ${#npm_pkgs[@]} -gt 0 ]; then
-  echo "Installing npm packages: ${npm_pkgs[*]}"
-  npm install -g "${npm_pkgs[@]}"
 fi
 
 # =============================================================================
