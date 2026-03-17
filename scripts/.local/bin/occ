@@ -1,0 +1,225 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# occ - opencode config manager
+# Manages multiple opencode configs via symlink at ~/.config/opencode
+
+OCC_DIR="$HOME/.occ"
+OPENCODE_LINK="$HOME/.config/opencode"
+
+usage() {
+  cat <<'EOF'
+Usage: occ <command> [args]
+
+Manage multiple opencode configurations.
+
+Commands:
+  init [--git]     Initialize ~/.occ with existing opencode config as 'default'
+  set <name>       Switch to a named config
+  create <name>    Create a new config (copies current) and switch to it
+  list             List available configs
+  current          Print the active config name
+  delete <name>    Delete a config
+  env              Print combined env vars (global + current config) for sourcing
+
+Environment:
+  ~/.occ/.env            Global env vars (applied to all configs)
+  ~/.occ/<name>/.env     Config-specific env vars
+                         Config-specific vars override global vars.
+
+  Env files use NAME=value format (one per line):
+    ANTHROPIC_API_KEY=sk-ant-...
+
+  Add to your shell rc:  eval "$(occ env 2>/dev/null)"
+
+  Configs can reference env vars with {env:VAR_NAME} in opencode.json.
+EOF
+  exit 0
+}
+
+die() { echo "Error: $*" >&2; exit 1; }
+
+ensure_occ_dir() {
+  if [[ ! -d "$OCC_DIR" ]]; then
+    mkdir -p "$OCC_DIR"
+    echo ".env" > "$OCC_DIR/.gitignore"
+    echo "**/.env" >> "$OCC_DIR/.gitignore"
+  fi
+}
+
+get_current() {
+  if [[ -L "$OPENCODE_LINK" ]]; then
+    local target
+    target=$(readlink "$OPENCODE_LINK")
+    basename "$target"
+  else
+    echo ""
+  fi
+}
+
+cmd_init() {
+  local use_git=false
+  if [[ "${1:-}" == "--git" ]]; then
+    use_git=true
+  fi
+
+  [[ -d "$OCC_DIR" ]] && die "~/.occ already exists. Already initialized?"
+
+  mkdir -p "$OCC_DIR"
+  echo ".env" > "$OCC_DIR/.gitignore"
+  echo "**/.env" >> "$OCC_DIR/.gitignore"
+
+  if [[ -d "$OPENCODE_LINK" && ! -L "$OPENCODE_LINK" ]]; then
+    mv "$OPENCODE_LINK" "$OCC_DIR/default"
+    echo "Moved existing config to ~/.occ/default"
+  elif [[ -L "$OPENCODE_LINK" ]]; then
+    die "${OPENCODE_LINK} is already a symlink. Nothing to migrate."
+  else
+    mkdir -p "$OCC_DIR/default"
+    echo "Created empty ~/.occ/default (no existing config found)"
+  fi
+
+  ln -s "$OCC_DIR/default" "$OPENCODE_LINK"
+
+  if [[ "$use_git" == true ]]; then
+    git -C "$OCC_DIR" init
+    git -C "$OCC_DIR" add -A
+    git -C "$OCC_DIR" commit -m "Initial occ setup"
+  fi
+
+  echo "Initialized. Active config: default"
+}
+
+cmd_current() {
+  local current
+  current=$(get_current)
+  if [[ -z "$current" ]]; then
+    echo "No active config (${OPENCODE_LINK} is not a symlink)" >&2
+    exit 1
+  fi
+  echo "$current"
+}
+
+cmd_list() {
+  ensure_occ_dir
+  local current
+  current=$(get_current)
+
+  local found=false
+  for dir in "$OCC_DIR"/*/; do
+    [[ -d "$dir" ]] || continue
+    found=true
+    local name
+    name=$(basename "$dir")
+    if [[ "$name" == "$current" ]]; then
+      echo "* $name"
+    else
+      echo "  $name"
+    fi
+  done
+
+  if [[ "$found" == false ]]; then
+    echo "No configs found. Create one with: occ create <name>" >&2
+  fi
+}
+
+cmd_set() {
+  local name="${1:?Usage: occ set <name>}"
+  local target="$OCC_DIR/$name"
+
+  [[ -d "$target" ]] || die "Config '$name' does not exist. Run 'occ list' to see available configs."
+
+  # Remove existing symlink or bail if it's a real directory
+  if [[ -e "$OPENCODE_LINK" && ! -L "$OPENCODE_LINK" ]]; then
+    die "${OPENCODE_LINK} exists and is not a symlink. Move it first."
+  fi
+
+  rm -f "$OPENCODE_LINK"
+  ln -s "$target" "$OPENCODE_LINK"
+  echo "Switched to: $name"
+}
+
+cmd_create() {
+  local name="${1:?Usage: occ create <name>}"
+  local target="$OCC_DIR/$name"
+  ensure_occ_dir
+
+  [[ -e "$target" ]] && die "Config '$name' already exists."
+
+  # Copy current config if one is active
+  if [[ -L "$OPENCODE_LINK" ]]; then
+    local current_target
+    current_target=$(readlink "$OPENCODE_LINK")
+    if [[ -d "$current_target" ]]; then
+      cp -r "$current_target" "$target"
+      # Remove config-specific .env from copy (user should create their own)
+      rm -f "$target/.env"
+      echo "Created '$name' (copied from $(basename "$current_target"))"
+    else
+      mkdir -p "$target"
+      echo "Created '$name' (empty, previous symlink target missing)"
+    fi
+  elif [[ -d "$OPENCODE_LINK" ]]; then
+    # It's a real directory, copy it
+    cp -r "$OPENCODE_LINK" "$target"
+    rm -f "$target/.env"
+    echo "Created '$name' (copied from existing ${OPENCODE_LINK})"
+  else
+    mkdir -p "$target"
+    echo "Created '$name' (empty)"
+  fi
+
+  cmd_set "$name"
+}
+
+cmd_delete() {
+  local name="${1:?Usage: occ delete <name>}"
+  local target="$OCC_DIR/$name"
+
+  [[ -d "$target" ]] || die "Config '$name' does not exist."
+
+  local current
+  current=$(get_current)
+  if [[ "$name" == "$current" ]]; then
+    die "Cannot delete the active config. Switch to another config first."
+  fi
+
+  rm -rf "$target"
+  echo "Deleted: $name"
+}
+
+cmd_env() {
+  # Print global env vars
+  if [[ -f "$OCC_DIR/.env" ]]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      # Skip comments and blank lines
+      [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+      echo "export $line"
+    done < "$OCC_DIR/.env"
+  fi
+
+  # Print config-specific env vars
+  local current
+  current=$(get_current)
+  if [[ -n "$current" && -f "$OCC_DIR/$current/.env" ]]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+      echo "export $line"
+    done < "$OCC_DIR/$current/.env"
+  fi
+}
+
+# Main
+[[ $# -eq 0 ]] && usage
+
+case "$1" in
+  init)    shift; cmd_init "$@" ;;
+  set)     shift; cmd_set "$@" ;;
+  create)  shift; cmd_create "$@" ;;
+  list)    cmd_list ;;
+  current) cmd_current ;;
+  delete)  shift; cmd_delete "$@" ;;
+  env)     cmd_env ;;
+  -h|--help) usage ;;
+  *) die "Unknown command: $1. Run 'occ --help' for usage." ;;
+esac
