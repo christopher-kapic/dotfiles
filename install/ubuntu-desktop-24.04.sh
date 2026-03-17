@@ -43,7 +43,7 @@ cd "$HOME/dotfiles"
 # =============================================================================
 # Step 3: Interactive stow package picker
 # =============================================================================
-skip_dirs=(".git" "templates" "fonts" "install")
+skip_dirs=(".git" "templates" "fonts" "bettermouse" "install")
 
 packages=()
 for d in */; do
@@ -65,11 +65,11 @@ draw_menu() {
   if [ "$1" = "redraw" ]; then
     printf "\033[%dA" "$((total + 1))"
   fi
-  echo "Select packages to stow (↑/k up, ↓/j down, space toggle, enter confirm):"
+  printf "Select packages to stow (↑/k up, ↓/j down, space toggle, enter confirm):\r\n"
   for i in "${!packages[@]}"; do
     if [ "$i" -eq "$cursor" ]; then pointer=">"; else pointer=" "; fi
     if [ "${selected[$i]}" = "1" ]; then check="[x]"; else check="[ ]"; fi
-    echo " $pointer $check ${packages[$i]}"
+    printf " %s %s %s\r\n" "$pointer" "$check" "${packages[$i]}"
   done
 }
 
@@ -85,12 +85,12 @@ while true; do
       dd bs=1 count=1 2>/dev/null  # [
       arrow=$(dd bs=1 count=1 2>/dev/null)
       case "$arrow" in
-        A) ((cursor > 0)) && ((cursor--)) ;;
-        B) ((cursor < total - 1)) && ((cursor++)) ;;
+        A) ((cursor > 0)) && ((cursor--)) || true ;;
+        B) ((cursor < total - 1)) && ((cursor++)) || true ;;
       esac
       ;;
-    k) ((cursor > 0)) && ((cursor--)) ;;
-    j) ((cursor < total - 1)) && ((cursor++)) ;;
+    k) ((cursor > 0)) && ((cursor--)) || true ;;
+    j) ((cursor < total - 1)) && ((cursor++)) || true ;;
     " ")
       if [ "${selected[$cursor]}" = "1" ]; then
         selected[$cursor]="0"
@@ -98,7 +98,7 @@ while true; do
         selected[$cursor]="1"
       fi
       ;;
-    "") break ;;  # Enter
+    $'\r') break ;;  # Enter (carriage return in raw mode)
   esac
   draw_menu "redraw"
 done
@@ -215,6 +215,120 @@ if ! command -v lvim &> /dev/null && ! [ -x "$HOME/.local/bin/lvim" ]; then
   bash <(curl -s https://raw.githubusercontent.com/christopher-kapic/CKLunarVim/master/utils/installer/install.sh)
 else
   echo "CKLunarVim already installed."
+fi
+
+# =============================================================================
+# Step 11: Optional packages
+# =============================================================================
+echo ""
+echo "--- Optional packages ---"
+
+opt_packages=("tmux" "ffmpeg" "gh" "htop" "jq" "lazygit" "opencode" "claude-code")
+
+# Selection state: all deselected by default
+opt_selected=()
+for i in "${!opt_packages[@]}"; do opt_selected+=("0"); done
+opt_cursor=0
+opt_total=${#opt_packages[@]}
+
+draw_opt_menu() {
+  if [ "$1" = "redraw" ]; then
+    printf "\033[%dA" "$((opt_total + 1))"
+  fi
+  printf "Select optional packages to install (↑/k up, ↓/j down, space toggle, enter confirm):\r\n"
+  for i in "${!opt_packages[@]}"; do
+    if [ "$i" -eq "$opt_cursor" ]; then pointer=">"; else pointer=" "; fi
+    if [ "${opt_selected[$i]}" = "1" ]; then check="[x]"; else check="[ ]"; fi
+    printf " %s %s %s\r\n" "$pointer" "$check" "${opt_packages[$i]}"
+  done
+}
+
+old_stty2=$(stty -g)
+stty raw -echo
+
+draw_opt_menu
+
+while true; do
+  char=$(dd bs=1 count=1 2>/dev/null)
+  case "$char" in
+    $'\x1b')
+      dd bs=1 count=1 2>/dev/null
+      arrow=$(dd bs=1 count=1 2>/dev/null)
+      case "$arrow" in
+        A) ((opt_cursor > 0)) && ((opt_cursor--)) || true ;;
+        B) ((opt_cursor < opt_total - 1)) && ((opt_cursor++)) || true ;;
+      esac
+      ;;
+    k) ((opt_cursor > 0)) && ((opt_cursor--)) || true ;;
+    j) ((opt_cursor < opt_total - 1)) && ((opt_cursor++)) || true ;;
+    " ")
+      if [ "${opt_selected[$opt_cursor]}" = "1" ]; then
+        opt_selected[$opt_cursor]="0"
+      else
+        opt_selected[$opt_cursor]="1"
+      fi
+      ;;
+    $'\r') break ;;
+  esac
+  draw_opt_menu "redraw"
+done
+
+stty "$old_stty2"
+echo ""
+
+# Install selected optional packages
+apt_pkgs=()
+npm_pkgs=()
+install_gh=false
+install_lazygit=false
+
+for i in "${!opt_packages[@]}"; do
+  if [ "${opt_selected[$i]}" = "1" ]; then
+    case "${opt_packages[$i]}" in
+      gh)          install_gh=true ;;
+      lazygit)     install_lazygit=true ;;
+      opencode)    npm_pkgs+=("opencode") ;;
+      claude-code) npm_pkgs+=("@anthropic-ai/claude-code") ;;
+      *)           apt_pkgs+=("${opt_packages[$i]}") ;;
+    esac
+  fi
+done
+
+if [ ${#apt_pkgs[@]} -gt 0 ]; then
+  echo "Installing apt packages: ${apt_pkgs[*]}"
+  sudo apt-get install -y "${apt_pkgs[@]}"
+fi
+
+if $install_gh; then
+  if ! command -v gh &> /dev/null; then
+    echo "Installing GitHub CLI..."
+    sudo mkdir -p -m 755 /etc/apt/keyrings
+    wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null
+    sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+    sudo apt-get update -qq
+    sudo apt-get install -y gh
+  else
+    echo "gh already installed."
+  fi
+fi
+
+if $install_lazygit; then
+  if ! command -v lazygit &> /dev/null; then
+    echo "Installing lazygit..."
+    LAZYGIT_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | grep -Po '"tag_name": "v\K[^"]*')
+    curl -Lo /tmp/lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${LAZYGIT_VERSION}_Linux_x86_64.tar.gz"
+    tar xf /tmp/lazygit.tar.gz -C /tmp lazygit
+    sudo install /tmp/lazygit /usr/local/bin
+    rm -f /tmp/lazygit /tmp/lazygit.tar.gz
+  else
+    echo "lazygit already installed."
+  fi
+fi
+
+if [ ${#npm_pkgs[@]} -gt 0 ]; then
+  echo "Installing npm packages: ${npm_pkgs[*]}"
+  npm install -g "${npm_pkgs[@]}"
 fi
 
 # =============================================================================

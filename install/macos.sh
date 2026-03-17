@@ -50,11 +50,11 @@ draw_menu() {
   if [ "$1" = "redraw" ]; then
     printf "\033[%dA" "$((total + 1))"
   fi
-  echo "Select packages to stow (↑/k up, ↓/j down, space toggle, enter confirm):"
+  printf "Select packages to stow (↑/k up, ↓/j down, space toggle, enter confirm):\r\n"
   for i in "${!packages[@]}"; do
     if [ "$i" -eq "$cursor" ]; then pointer=">"; else pointer=" "; fi
     if [ "${selected[$i]}" = "1" ]; then check="[x]"; else check="[ ]"; fi
-    echo " $pointer $check ${packages[$i]}"
+    printf " %s %s %s\r\n" "$pointer" "$check" "${packages[$i]}"
   done
 }
 
@@ -169,6 +169,158 @@ fi
 if ! command -v lvim &> /dev/null && ! [ -x "$HOME/.local/bin/lvim" ]; then
   echo "CKLunarVim (lvim) could not be found - installing now..."
   bash <(curl -s https://raw.githubusercontent.com/christopher-kapic/CKLunarVim/master/utils/installer/install.sh)
+fi
+
+# =============================================================================
+# Optional packages
+# =============================================================================
+echo ""
+echo "--- Optional packages ---"
+
+opt_packages=("tmux" "ffmpeg" "gh" "htop" "jq" "lazygit" "wget" "opencode" "claude-code")
+
+# Selection state: all deselected by default
+opt_selected=()
+for i in "${!opt_packages[@]}"; do opt_selected+=("0"); done
+opt_cursor=0
+opt_total=${#opt_packages[@]}
+
+draw_opt_menu() {
+  if [ "$1" = "redraw" ]; then
+    printf "\033[%dA" "$((opt_total + 1))"
+  fi
+  printf "Select optional packages to install (↑/k up, ↓/j down, space toggle, enter confirm):\r\n"
+  for i in "${!opt_packages[@]}"; do
+    if [ "$i" -eq "$opt_cursor" ]; then pointer=">"; else pointer=" "; fi
+    if [ "${opt_selected[$i]}" = "1" ]; then check="[x]"; else check="[ ]"; fi
+    printf " %s %s %s\r\n" "$pointer" "$check" "${opt_packages[$i]}"
+  done
+}
+
+old_stty2=$(stty -g)
+stty raw -echo
+
+draw_opt_menu
+
+while true; do
+  char=$(dd bs=1 count=1 2>/dev/null)
+  case "$char" in
+    $'\x1b')
+      dd bs=1 count=1 2>/dev/null
+      arrow=$(dd bs=1 count=1 2>/dev/null)
+      case "$arrow" in
+        A) ((opt_cursor > 0)) && ((opt_cursor--)) || true ;;
+        B) ((opt_cursor < opt_total - 1)) && ((opt_cursor++)) || true ;;
+      esac
+      ;;
+    k) ((opt_cursor > 0)) && ((opt_cursor--)) || true ;;
+    j) ((opt_cursor < opt_total - 1)) && ((opt_cursor++)) || true ;;
+    " ")
+      if [ "${opt_selected[$opt_cursor]}" = "1" ]; then
+        opt_selected[$opt_cursor]="0"
+      else
+        opt_selected[$opt_cursor]="1"
+      fi
+      ;;
+    $'\r') break ;;
+  esac
+  draw_opt_menu "redraw"
+done
+
+stty "$old_stty2"
+echo ""
+
+# Install selected optional packages
+brew_pkgs=()
+npm_pkgs=()
+for i in "${!opt_packages[@]}"; do
+  if [ "${opt_selected[$i]}" = "1" ]; then
+    case "${opt_packages[$i]}" in
+      opencode)    npm_pkgs+=("opencode") ;;
+      claude-code) npm_pkgs+=("@anthropic-ai/claude-code") ;;
+      *)           brew_pkgs+=("${opt_packages[$i]}") ;;
+    esac
+  fi
+done
+
+if [ ${#brew_pkgs[@]} -gt 0 ]; then
+  echo "Installing brew packages: ${brew_pkgs[*]}"
+  brew install "${brew_pkgs[@]}"
+fi
+
+if [ ${#npm_pkgs[@]} -gt 0 ]; then
+  echo "Installing npm packages: ${npm_pkgs[*]}"
+  npm install -g "${npm_pkgs[@]}"
+fi
+
+# =============================================================================
+# Optional casks (GUI applications)
+# =============================================================================
+echo ""
+echo "--- Optional applications (casks) ---"
+
+cask_packages=("pika" "maccy" "monitorcontrol" "bettermouse" "brave-browser" "cyberduck" "firefox" "google-chrome" "rectangle")
+
+cask_selected=()
+for i in "${!cask_packages[@]}"; do cask_selected+=("0"); done
+cask_cursor=0
+cask_total=${#cask_packages[@]}
+
+draw_cask_menu() {
+  if [ "$1" = "redraw" ]; then
+    printf "\033[%dA" "$((cask_total + 1))"
+  fi
+  printf "Select applications to install (↑/k up, ↓/j down, space toggle, enter confirm):\r\n"
+  for i in "${!cask_packages[@]}"; do
+    if [ "$i" -eq "$cask_cursor" ]; then pointer=">"; else pointer=" "; fi
+    if [ "${cask_selected[$i]}" = "1" ]; then check="[x]"; else check="[ ]"; fi
+    printf " %s %s %s\r\n" "$pointer" "$check" "${cask_packages[$i]}"
+  done
+}
+
+old_stty3=$(stty -g)
+stty raw -echo
+
+draw_cask_menu
+
+while true; do
+  char=$(dd bs=1 count=1 2>/dev/null)
+  case "$char" in
+    $'\x1b')
+      dd bs=1 count=1 2>/dev/null
+      arrow=$(dd bs=1 count=1 2>/dev/null)
+      case "$arrow" in
+        A) ((cask_cursor > 0)) && ((cask_cursor--)) || true ;;
+        B) ((cask_cursor < cask_total - 1)) && ((cask_cursor++)) || true ;;
+      esac
+      ;;
+    k) ((cask_cursor > 0)) && ((cask_cursor--)) || true ;;
+    j) ((cask_cursor < cask_total - 1)) && ((cask_cursor++)) || true ;;
+    " ")
+      if [ "${cask_selected[$cask_cursor]}" = "1" ]; then
+        cask_selected[$cask_cursor]="0"
+      else
+        cask_selected[$cask_cursor]="1"
+      fi
+      ;;
+    $'\r') break ;;
+  esac
+  draw_cask_menu "redraw"
+done
+
+stty "$old_stty3"
+echo ""
+
+casks_to_install=()
+for i in "${!cask_packages[@]}"; do
+  if [ "${cask_selected[$i]}" = "1" ]; then
+    casks_to_install+=("${cask_packages[$i]}")
+  fi
+done
+
+if [ ${#casks_to_install[@]} -gt 0 ]; then
+  echo "Installing casks: ${casks_to_install[*]}"
+  brew install --cask "${casks_to_install[@]}"
 fi
 
 echo "Configuring some MacOS settings..."
