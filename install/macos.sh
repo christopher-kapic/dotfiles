@@ -27,7 +27,7 @@ fi
 cd "$HOME/dotfiles"
 
 # --- Interactive stow package picker ---
-skip_dirs=(".git" "templates" "fonts")
+skip_dirs=(".git" "templates" "fonts" "bettermouse" "install")
 
 packages=()
 for d in */; do
@@ -72,12 +72,12 @@ while true; do
       dd bs=1 count=1 2>/dev/null  # [
       arrow=$(dd bs=1 count=1 2>/dev/null)
       case "$arrow" in
-        A) ((cursor > 0)) && ((cursor--)) ;;  # Up
-        B) ((cursor < total - 1)) && ((cursor++)) ;;  # Down
+        A) ((cursor > 0)) && ((cursor--)) || true ;;  # Up
+        B) ((cursor < total - 1)) && ((cursor++)) || true ;;  # Down
       esac
       ;;
-    k) ((cursor > 0)) && ((cursor--)) ;;
-    j) ((cursor < total - 1)) && ((cursor++)) ;;
+    k) ((cursor > 0)) && ((cursor--)) || true ;;
+    j) ((cursor < total - 1)) && ((cursor++)) || true ;;
     " ")
       if [ "${selected[$cursor]}" = "1" ]; then
         selected[$cursor]="0"
@@ -85,7 +85,7 @@ while true; do
         selected[$cursor]="1"
       fi
       ;;
-    "") break ;;  # Enter
+    $'\r') break ;;  # Enter (carriage return in raw mode)
   esac
   draw_menu "redraw"
 done
