@@ -102,7 +102,7 @@ stowed_zsh=false
 for i in "${!packages[@]}"; do
   if [ "${selected[$i]}" = "1" ]; then
     echo "Stowing ${packages[$i]}..."
-    stow --target="$HOME" "${packages[$i]}"
+    stow --restow --target="$HOME" "${packages[$i]}"
     if [ "${packages[$i]}" = "zsh" ]; then stowed_zsh=true; fi
   fi
 done
@@ -120,7 +120,7 @@ if ! [ -d "$HOME/.powerlevel10k" ]; then
 fi
 
 mkdir -p "$HOME/Library/Fonts"
-cp "$HOME/dotfiles/fonts/"* "$HOME/Library/Fonts"
+cp "$HOME/dotfiles/fonts/.config/fonts/"* "$HOME/Library/Fonts" 2>/dev/null || true
 
 # Install nvm
 if ! command -v nvm &> /dev/null
@@ -147,8 +147,8 @@ fi
 if ! command -v rustc &> /dev/null
 then
   echo "rust could not be found - installing now..."
-  bash <(curl -s https://sh.rustup.rs)
-  source $HOME/.cargo/env
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+  source "$HOME/.cargo/env"
 fi
 
 # Neovim 0.11.5+ required for CKLunarVim

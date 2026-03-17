@@ -18,6 +18,20 @@ Or if you already have the repo cloned:
 bash ~/dotfiles/install/macos.sh
 ```
 
+### Ubuntu Desktop 24.04
+
+Idempotent desktop setup script. Installs dev tools (stow, nvm, Node.js, Rust, Neovim, CKLunarVim), stows dotfiles with an interactive picker, installs fonts, and sets zsh as the default shell. Run as your normal user (not root).
+
+```bash
+bash <(curl -s https://raw.githubusercontent.com/christopher-kapic/dotfiles/master/install/ubuntu-desktop-24.04.sh)
+```
+
+Or if you already have the repo cloned:
+
+```bash
+bash ~/dotfiles/install/ubuntu-desktop-24.04.sh
+```
+
 ### Ubuntu Server 24.04
 
 Interactive server hardening and setup script. Creates a new user, configures SSH (key-based auth only, no root login), sets up UFW firewall and fail2ban, installs latest Neovim from GitHub, installs CKLunarVim, and sets zsh as the default shell. Must be run as root.
