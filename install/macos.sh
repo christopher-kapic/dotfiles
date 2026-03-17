@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 echo "Christopher Kapic's System Configuration"
 
@@ -118,7 +119,8 @@ if ! [ -d "$HOME/.powerlevel10k" ]; then
   git clone --depth=1 https://github.com/romkatv/powerlevel10k.git $HOME/.powerlevel10k
 fi
 
-cp $HOME/dotfiles/fonts/* $HOME/Library/Fonts
+mkdir -p "$HOME/Library/Fonts"
+cp "$HOME/dotfiles/fonts/"* "$HOME/Library/Fonts"
 
 # Install nvm
 if ! command -v nvm &> /dev/null
@@ -132,7 +134,7 @@ fi
 
 if ! command -v node &> /dev/null
 then
-  echo "node could not be found - installing v20 now"
+  echo "node could not be found - installing v25 now"
   nvm install 25
 fi
 
