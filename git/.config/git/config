@@ -3,3 +3,5 @@
 [user]
 	name = Christopher Kapic
 	email = christopherkapic@gmail.com
+[push]
+	autoSetupRemote = true
