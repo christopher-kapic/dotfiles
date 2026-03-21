@@ -29,6 +29,18 @@ lvim.log.level = "error"
 lvim.leader = "space"
 
 -- ============================================================================
+-- Formatters
+-- ============================================================================
+
+local formatters = require "lvim.lsp.null-ls.formatters"
+formatters.setup {
+  {
+    name = "prettier",
+    filetypes = { "typescript", "typescriptreact", "javascript", "javascriptreact" },
+  },
+}
+
+-- ============================================================================
 -- Builtin Plugin Configurations
 -- ============================================================================
 
