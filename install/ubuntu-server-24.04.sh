@@ -77,7 +77,7 @@ sed -i 's/^#\?KbdInteractiveAuthentication.*/KbdInteractiveAuthentication no/' /
 sed -i 's/^#\?UsePAM.*/UsePAM yes/' /etc/ssh/sshd_config
 
 # Restart SSH to apply changes
-systemctl restart sshd
+systemctl restart ssh || systemctl restart sshd
 echo "SSH configured: root login disabled, password authentication disabled."
 
 # =============================================================================
