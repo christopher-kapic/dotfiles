@@ -11,9 +11,10 @@ set -e
 #   2. Configure SSH (key-based auth only, no root login)
 #   3. Set up UFW firewall
 #   4. Set up fail2ban for SSH brute-force protection
-#   5. Install Neovim (latest from GitHub releases)
-#   6. Install CKLunarVim for the new user
-#   7. Set zsh as the default shell for the new user
+#   5. Clone dotfiles and set up stow, powerlevel10k, and zshrc for the new user
+#   6. Install Neovim (latest from GitHub releases)
+#   7. Install CKLunarVim for the new user
+#   8. Set zsh as the default shell for the new user
 # =============================================================================
 
 # --- Ensure the script is run as root ---
@@ -187,13 +188,55 @@ echo "Zsh set as default shell for '$NEW_USER'."
 # =============================================================================
 echo ""
 echo "--- Installing dependencies ---"
-apt-get install -y git curl wget build-essential unzip
+apt-get install -y git curl wget build-essential unzip stow openssh-server
 
 # =============================================================================
-# Step 7: Install latest Neovim from GitHub releases
+# Step 7: Clone dotfiles, stow packages, and set up powerlevel10k
+# =============================================================================
+echo ""
+echo "--- Dotfiles Setup for '$NEW_USER' ---"
+
+# Clone dotfiles repo if not already present
+if ! [ -d "$USER_HOME/dotfiles" ]; then
+  echo "Cloning dotfiles..."
+  su - "$NEW_USER" -c 'git clone --depth=1 https://github.com/christopher-kapic/dotfiles.git "$HOME/dotfiles"'
+else
+  echo "dotfiles already cloned."
+fi
+
+# Ensure ~/.local/bin exists as a real directory so stow symlinks individual scripts
+su - "$NEW_USER" -c 'mkdir -p "$HOME/.local/bin"'
+
+# Stow relevant packages for server use (skip alacritty, bettermouse, nvchad, fonts)
+STOW_PACKAGES="git shell zsh lvim scripts tmux"
+for pkg in $STOW_PACKAGES; do
+  if [ -d "$USER_HOME/dotfiles/$pkg" ]; then
+    echo "Stowing $pkg..."
+    su - "$NEW_USER" -c "cd \$HOME/dotfiles && stow --restow --target=\$HOME $pkg"
+  fi
+done
+
+# Copy zshrc template if ~/.zshrc doesn't exist
+if ! [ -f "$USER_HOME/.zshrc" ]; then
+  echo "Copying zshrc template to ~/.zshrc..."
+  cp "$USER_HOME/dotfiles/templates/zshrc" "$USER_HOME/.zshrc"
+  chown "$NEW_USER:$NEW_USER" "$USER_HOME/.zshrc"
+fi
+
+# Install powerlevel10k
+if ! [ -d "$USER_HOME/.powerlevel10k" ]; then
+  echo "Installing powerlevel10k..."
+  su - "$NEW_USER" -c 'git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$HOME/.powerlevel10k"'
+else
+  echo "powerlevel10k already installed."
+fi
+
+# =============================================================================
+# Step 8: Install latest Neovim from GitHub releases
 # The apt repository typically has outdated versions, so we pull the latest
 # release directly from the Neovim GitHub project.
 # =============================================================================
+
 echo ""
 echo "--- Neovim Setup ---"
 
@@ -213,7 +256,7 @@ ln -sf /opt/nvim-linux-x86_64/bin/nvim /usr/local/bin/nvim
 echo "Neovim $(nvim --version | head -1) installed to /usr/local/bin/nvim."
 
 # =============================================================================
-# Step 8: Install nvm, Node.js, and Rust for the new user
+# Step 9: Install nvm, Node.js, and Rust for the new user
 # These are prerequisites for CKLunarVim. We run them as the new user so
 # they're installed in the user's home directory, not system-wide.
 # =============================================================================
@@ -228,7 +271,7 @@ su - "$NEW_USER" -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && 
 su - "$NEW_USER" -c 'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y'
 
 # =============================================================================
-# Step 9: Install CKLunarVim for the new user
+# Step 10: Install CKLunarVim for the new user
 # CKLunarVim is a custom LunarVim distribution. We install it as the new user
 # so the configuration lands in their home directory.
 # =============================================================================
@@ -250,6 +293,8 @@ echo "  - User '$NEW_USER' created with sudo access"
 echo "  - SSH: key-based auth only, root login disabled"
 echo "  - UFW: firewall enabled (check 'ufw status' for open ports)"
 echo "  - fail2ban: 24h ban after 5 failed SSH attempts"
+echo "  - Dotfiles: cloned, stowed (git, shell, zsh, lvim, scripts, tmux)"
+echo "  - Powerlevel10k: installed"
 echo "  - Neovim: latest version installed"
 echo "  - CKLunarVim: installed for '$NEW_USER'"
 echo "  - Zsh: default shell for '$NEW_USER'"
