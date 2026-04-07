@@ -1,7 +1,6 @@
 [core]
 	excludesFile = ~/.config/git/ignore
-[user]
-	name = Christopher Kapic
-	email = christopherkapic@gmail.com
+[include]
+	path = ~/.config/git/config.local
 [push]
 	autoSetupRemote = true

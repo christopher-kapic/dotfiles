@@ -128,7 +128,24 @@ elif $stowed_zsh && [ -f "$HOME/.zshrc" ]; then
 fi
 
 # =============================================================================
-# Step 4: Install powerlevel10k
+# Step 4: Generate git user config
+# =============================================================================
+if ! [ -f "$HOME/.config/git/config.local" ]; then
+  echo ""
+  echo "--- Git User Setup ---"
+  read -rp "Enter your full name for git: " GIT_NAME
+  read -rp "Enter your email for git: " GIT_EMAIL
+  mkdir -p "$HOME/.config/git"
+  cat > "$HOME/.config/git/config.local" << EOF
+[user]
+	name = $GIT_NAME
+	email = $GIT_EMAIL
+EOF
+  echo "Git user config written to ~/.config/git/config.local"
+fi
+
+# =============================================================================
+# Step 5: Install powerlevel10k
 # =============================================================================
 if ! [ -d "$HOME/.powerlevel10k" ]; then
   echo "Installing powerlevel10k..."
@@ -138,7 +155,7 @@ else
 fi
 
 # =============================================================================
-# Step 5: Install fonts
+# Step 6: Install fonts
 # =============================================================================
 echo "--- Installing fonts ---"
 mkdir -p "$HOME/.local/share/fonts"
@@ -146,7 +163,7 @@ cp "$HOME/dotfiles/fonts/.config/fonts/"* "$HOME/.local/share/fonts" 2>/dev/null
 fc-cache -f "$HOME/.local/share/fonts" 2>/dev/null || true
 
 # =============================================================================
-# Step 6: Set zsh as default shell
+# Step 7: Set zsh as default shell
 # =============================================================================
 if [ "$(basename "$SHELL")" != "zsh" ]; then
   echo "Setting zsh as default shell..."
@@ -156,7 +173,7 @@ else
 fi
 
 # =============================================================================
-# Step 7: Install nvm and Node.js
+# Step 8: Install nvm and Node.js
 # =============================================================================
 export NVM_DIR="$HOME/.nvm"
 if ! [ -s "$NVM_DIR/nvm.sh" ]; then
@@ -173,7 +190,7 @@ else
 fi
 
 # =============================================================================
-# Step 8: Install Rust
+# Step 9: Install Rust
 # =============================================================================
 if ! command -v rustc &> /dev/null; then
   echo "Installing Rust..."

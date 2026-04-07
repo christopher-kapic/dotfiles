@@ -216,6 +216,22 @@ for pkg in $STOW_PACKAGES; do
   fi
 done
 
+# Generate git user config if it doesn't already exist
+if ! [ -f "$USER_HOME/.config/git/config.local" ]; then
+  echo ""
+  echo "--- Git User Setup ---"
+  read -rp "Enter full name for git commits: " GIT_NAME
+  read -rp "Enter email for git commits: " GIT_EMAIL
+  mkdir -p "$USER_HOME/.config/git"
+  cat > "$USER_HOME/.config/git/config.local" << EOF
+[user]
+	name = $GIT_NAME
+	email = $GIT_EMAIL
+EOF
+  chown -R "$NEW_USER:$NEW_USER" "$USER_HOME/.config/git"
+  echo "Git user config written to ~/.config/git/config.local"
+fi
+
 # Copy zshrc template if ~/.zshrc doesn't exist
 if ! [ -f "$USER_HOME/.zshrc" ]; then
   echo "Copying zshrc template to ~/.zshrc..."
