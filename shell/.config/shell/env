@@ -1,2 +1,2 @@
 export XDG_CONFIG_HOME=$HOME/.config
-export EDITOR=/Users/christopherkapic/.local/bin/lvim
+export EDITOR=$HOME/.local/bin/lvim

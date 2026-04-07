@@ -10,5 +10,5 @@ export PATH="$HOME/.kctx/bin:$PATH"
 export PATH="$HOME/.bun/bin:$PATH"
 export PATH="$BUN_INSTALL/bin:$PATH"
 export PATH="$PATH:$HOME/tizen-studio/tools/ide/bin"
-export PATH=/home/christopher/.opencode/bin:$PATH
-export PATH=/home/christopher/.nvim/bin:$PATH
+export PATH=$HOME/.opencode/bin:$PATH
+export PATH=$HOME/.nvim/bin:$PATH
