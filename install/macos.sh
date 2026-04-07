@@ -115,6 +115,21 @@ elif $stowed_zsh && [ -f "$HOME/.zshrc" ]; then
   echo "~/.zshrc already exists, skipping template copy"
 fi
 
+# =============================================================================
+# Git user configuration
+# =============================================================================
+echo ""
+echo "--- Git User Configuration ---"
+read -rp "Enter your Git name (or press Enter to skip): " GIT_NAME
+if [ -n "$GIT_NAME" ]; then
+  read -rp "Enter your Git email (or press Enter to skip): " GIT_EMAIL
+  git config --file "$HOME/.gitconfig" user.name "$GIT_NAME"
+  [ -n "$GIT_EMAIL" ] && git config --file "$HOME/.gitconfig" user.email "$GIT_EMAIL"
+  echo "Git user configured."
+else
+  echo "Skipping Git user configuration."
+fi
+
 if ! [ -d "$HOME/.powerlevel10k" ]; then
   git clone --depth=1 https://github.com/romkatv/powerlevel10k.git $HOME/.powerlevel10k
 fi

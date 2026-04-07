@@ -223,6 +223,22 @@ if ! [ -f "$USER_HOME/.zshrc" ]; then
   chown "$NEW_USER:$NEW_USER" "$USER_HOME/.zshrc"
 fi
 
+# =============================================================================
+# Git user configuration
+# =============================================================================
+echo ""
+echo "--- Git User Configuration ---"
+read -rp "Enter the Git name for '$NEW_USER' (or press Enter to skip): " GIT_NAME
+if [ -n "$GIT_NAME" ]; then
+  read -rp "Enter the Git email for '$NEW_USER' (or press Enter to skip): " GIT_EMAIL
+  git config --file "$USER_HOME/.gitconfig" user.name "$GIT_NAME"
+  [ -n "$GIT_EMAIL" ] && git config --file "$USER_HOME/.gitconfig" user.email "$GIT_EMAIL"
+  chown "$NEW_USER:$NEW_USER" "$USER_HOME/.gitconfig"
+  echo "Git user configured for '$NEW_USER'."
+else
+  echo "Skipping Git user configuration."
+fi
+
 # Install powerlevel10k
 if ! [ -d "$USER_HOME/.powerlevel10k" ]; then
   echo "Installing powerlevel10k..."
