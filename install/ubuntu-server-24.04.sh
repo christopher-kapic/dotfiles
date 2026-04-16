@@ -5,8 +5,11 @@ set -e
 # Ubuntu Server 24.04 Setup Script
 # Christopher Kapic's dotfiles
 #
-# This script should be run as root on a fresh Ubuntu Server 24.04 installation.
-# It will:
+# This script is idempotent and can be re-run to add more users. System-level
+# setup (SSH hardening, UFW, fail2ban, Neovim) is skipped on subsequent runs;
+# per-user setup runs fresh for each new user.
+#
+# Run as root on Ubuntu Server 24.04. It will:
 #   1. Create a new user with sudo access
 #   2. Configure SSH (key-based auth only, no root login)
 #   3. Set up UFW firewall
@@ -15,7 +18,20 @@ set -e
 #   6. Install Neovim (latest from GitHub releases)
 #   7. Install CKLunarVim for the new user
 #   8. Set zsh as the default shell for the new user
+#
+# Flags:
+#   --workstation    Also install CLI tools useful for SSH-based development
+#                    (tmux, gh, lazygit, htop, jq, opencode, claude-code).
 # =============================================================================
+
+# --- Parse flags ---
+WORKSTATION=false
+for arg in "$@"; do
+  case "$arg" in
+    --workstation) WORKSTATION=true ;;
+    *) echo "Unknown argument: $arg"; exit 1 ;;
+  esac
+done
 
 # --- Ensure the script is run as root ---
 if [ "$(id -u)" -ne 0 ]; then
@@ -60,11 +76,16 @@ fi
 # Create .ssh directory for the new user and install the authorized key
 USER_HOME=$(eval echo "~$NEW_USER")
 mkdir -p "$USER_HOME/.ssh"
-echo "$SSH_PUBLIC_KEY" >> "$USER_HOME/.ssh/authorized_keys"
+touch "$USER_HOME/.ssh/authorized_keys"
+if grep -qxF "$SSH_PUBLIC_KEY" "$USER_HOME/.ssh/authorized_keys"; then
+  echo "SSH public key already present for '$NEW_USER'."
+else
+  echo "$SSH_PUBLIC_KEY" >> "$USER_HOME/.ssh/authorized_keys"
+  echo "SSH public key installed for '$NEW_USER'."
+fi
 chmod 700 "$USER_HOME/.ssh"
 chmod 600 "$USER_HOME/.ssh/authorized_keys"
 chown -R "$NEW_USER:$NEW_USER" "$USER_HOME/.ssh"
-echo "SSH public key installed for '$NEW_USER'."
 
 # Harden the SSH daemon configuration:
 # - Disable root login entirely
@@ -88,61 +109,66 @@ echo "SSH configured: root login disabled, password authentication disabled."
 # =============================================================================
 echo ""
 echo "--- Firewall (UFW) Setup ---"
-echo "What is the purpose of this server?"
-echo "  1) General purpose (SSH only)"
-echo "  2) Web server (SSH + HTTP/HTTPS)"
-echo "  3) Custom"
-read -rp "Select [1/2/3]: " SERVER_PURPOSE
+if ufw status 2>/dev/null | grep -q "Status: active"; then
+  echo "UFW is already active, skipping firewall configuration."
+  ufw status verbose
+else
+  echo "What is the purpose of this server?"
+  echo "  1) General purpose (SSH only)"
+  echo "  2) Web server (SSH + HTTP/HTTPS)"
+  echo "  3) Custom"
+  read -rp "Select [1/2/3]: " SERVER_PURPOSE
 
-# Start with a clean default: deny all incoming, allow all outgoing
-ufw default deny incoming
-ufw default allow outgoing
+  # Start with a clean default: deny all incoming, allow all outgoing
+  ufw default deny incoming
+  ufw default allow outgoing
 
-# SSH is always allowed
-ufw allow 22/tcp comment "SSH"
+  # SSH is always allowed
+  ufw allow 22/tcp comment "SSH"
 
-case "$SERVER_PURPOSE" in
-  2)
-    # Allow standard web traffic ports
-    ufw allow 80/tcp comment "HTTP"
-    ufw allow 443/tcp comment "HTTPS"
-    echo "Ports 80 (HTTP) and 443 (HTTPS) opened."
-    ;;
-  3)
-    echo "Would you like to open HTTP (80) and HTTPS (443)? [y/N]"
-    read -rp "> " OPEN_WEB
-    if [[ "$OPEN_WEB" =~ ^[Yy] ]]; then
+  case "$SERVER_PURPOSE" in
+    2)
+      # Allow standard web traffic ports
       ufw allow 80/tcp comment "HTTP"
       ufw allow 443/tcp comment "HTTPS"
-      echo "Ports 80 and 443 opened."
-    fi
+      echo "Ports 80 (HTTP) and 443 (HTTPS) opened."
+      ;;
+    3)
+      echo "Would you like to open HTTP (80) and HTTPS (443)? [y/N]"
+      read -rp "> " OPEN_WEB
+      if [[ "$OPEN_WEB" =~ ^[Yy] ]]; then
+        ufw allow 80/tcp comment "HTTP"
+        ufw allow 443/tcp comment "HTTPS"
+        echo "Ports 80 and 443 opened."
+      fi
 
-    # Allow the user to specify additional ports as a comma-separated list
-    echo "Enter additional ports to open (comma-separated, e.g. 8080,3000), or press Enter to skip:"
-    read -rp "> " EXTRA_PORTS
-    if [ -n "$EXTRA_PORTS" ]; then
-      IFS=',' read -ra PORTS <<< "$EXTRA_PORTS"
-      for port in "${PORTS[@]}"; do
-        # Trim whitespace
-        port=$(echo "$port" | tr -d ' ')
-        if [[ "$port" =~ ^[0-9]+$ ]]; then
-          ufw allow "$port/tcp" comment "Custom port"
-          echo "Port $port opened."
-        else
-          echo "Skipping invalid port: $port"
-        fi
-      done
-    fi
-    ;;
-  *)
-    echo "Only SSH (port 22) will be open."
-    ;;
-esac
+      # Allow the user to specify additional ports as a comma-separated list
+      echo "Enter additional ports to open (comma-separated, e.g. 8080,3000), or press Enter to skip:"
+      read -rp "> " EXTRA_PORTS
+      if [ -n "$EXTRA_PORTS" ]; then
+        IFS=',' read -ra PORTS <<< "$EXTRA_PORTS"
+        for port in "${PORTS[@]}"; do
+          # Trim whitespace
+          port=$(echo "$port" | tr -d ' ')
+          if [[ "$port" =~ ^[0-9]+$ ]]; then
+            ufw allow "$port/tcp" comment "Custom port"
+            echo "Port $port opened."
+          else
+            echo "Skipping invalid port: $port"
+          fi
+        done
+      fi
+      ;;
+    *)
+      echo "Only SSH (port 22) will be open."
+      ;;
+  esac
 
-# Enable UFW (--force skips the interactive confirmation)
-ufw --force enable
-echo "UFW firewall enabled."
-ufw status verbose
+  # Enable UFW (--force skips the interactive confirmation)
+  ufw --force enable
+  echo "UFW firewall enabled."
+  ufw status verbose
+fi
 
 # =============================================================================
 # Step 4: Set up fail2ban for SSH brute-force protection
@@ -151,12 +177,15 @@ ufw status verbose
 # =============================================================================
 echo ""
 echo "--- fail2ban Setup ---"
-apt-get update -qq
-apt-get install -y fail2ban
+if [ -f /etc/fail2ban/jail.local ] && systemctl is-active --quiet fail2ban; then
+  echo "fail2ban already configured and running, skipping."
+else
+  apt-get update -qq
+  apt-get install -y fail2ban
 
-# Create a local jail config (overrides defaults without modifying the
-# upstream jail.conf, so our settings survive package upgrades)
-cat > /etc/fail2ban/jail.local << 'EOF'
+  # Create a local jail config (overrides defaults without modifying the
+  # upstream jail.conf, so our settings survive package upgrades)
+  cat > /etc/fail2ban/jail.local << 'EOF'
 [sshd]
 enabled = true
 port = ssh
@@ -170,9 +199,10 @@ maxretry = 5
 backend = systemd
 EOF
 
-systemctl enable fail2ban
-systemctl restart fail2ban
-echo "fail2ban configured: 24-hour ban after 5 failed SSH attempts."
+  systemctl enable fail2ban
+  systemctl restart fail2ban
+  echo "fail2ban configured: 24-hour ban after 5 failed SSH attempts."
+fi
 
 # =============================================================================
 # Step 5: Install zsh and set it as default shell for the new user
@@ -256,20 +286,34 @@ fi
 echo ""
 echo "--- Neovim Setup ---"
 
-# Query the GitHub API for the latest release tag
-NVIM_LATEST=$(curl -s https://api.github.com/repos/neovim/neovim/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
-echo "Latest Neovim release: $NVIM_LATEST"
+# Skip if Neovim >= 0.11.5 is already installed
+neovim_ok=
+if command -v nvim &> /dev/null; then
+  nvim_version=$(nvim --version 2>/dev/null | head -1 | sed -n 's/.*v\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\).*/\1 \2 \3/p')
+  read -r maj min pat <<< "$nvim_version"
+  vnum=$((maj*10000 + min*100 + pat))
+  if [ -n "$vnum" ] && [ "$vnum" -ge 1105 ]; then
+    neovim_ok=1
+    echo "Neovim already installed: $(nvim --version | head -1)"
+  fi
+fi
 
-# Download and extract the pre-built Linux binary
-NVIM_URL="https://github.com/neovim/neovim/releases/download/${NVIM_LATEST}/nvim-linux-x86_64.tar.gz"
-echo "Downloading Neovim from $NVIM_URL..."
-curl -Lo /tmp/nvim.tar.gz "$NVIM_URL"
-tar -xzf /tmp/nvim.tar.gz -C /opt/
-rm -f /tmp/nvim.tar.gz
+if [ -z "$neovim_ok" ]; then
+  # Query the GitHub API for the latest release tag
+  NVIM_LATEST=$(curl -s https://api.github.com/repos/neovim/neovim/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+  echo "Latest Neovim release: $NVIM_LATEST"
 
-# Symlink nvim into /usr/local/bin so it's on everyone's PATH
-ln -sf /opt/nvim-linux-x86_64/bin/nvim /usr/local/bin/nvim
-echo "Neovim $(nvim --version | head -1) installed to /usr/local/bin/nvim."
+  # Download and extract the pre-built Linux binary
+  NVIM_URL="https://github.com/neovim/neovim/releases/download/${NVIM_LATEST}/nvim-linux-x86_64.tar.gz"
+  echo "Downloading Neovim from $NVIM_URL..."
+  curl -Lo /tmp/nvim.tar.gz "$NVIM_URL"
+  tar -xzf /tmp/nvim.tar.gz -C /opt/
+  rm -f /tmp/nvim.tar.gz
+
+  # Symlink nvim into /usr/local/bin so it's on everyone's PATH
+  ln -sf /opt/nvim-linux-x86_64/bin/nvim /usr/local/bin/nvim
+  echo "Neovim $(nvim --version | head -1) installed to /usr/local/bin/nvim."
+fi
 
 # =============================================================================
 # Step 9: Install nvm, Node.js, and Rust for the new user
@@ -279,12 +323,23 @@ echo "Neovim $(nvim --version | head -1) installed to /usr/local/bin/nvim."
 echo ""
 echo "--- Installing nvm, Node.js, and Rust for '$NEW_USER' ---"
 
-# Install nvm and Node.js as the new user
-su - "$NEW_USER" -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash'
+# Install nvm if not already present for this user
+if [ -s "$USER_HOME/.nvm/nvm.sh" ]; then
+  echo "nvm already installed for '$NEW_USER'."
+else
+  su - "$NEW_USER" -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash'
+fi
+
+# Install Node.js 25 if not already present. nvm install is a no-op if the
+# requested version is already installed.
 su - "$NEW_USER" -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" && nvm install 25'
 
 # Install Rust toolchain as the new user (non-interactive via -y flag)
-su - "$NEW_USER" -c 'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y'
+if [ -x "$USER_HOME/.cargo/bin/rustc" ]; then
+  echo "Rust already installed for '$NEW_USER'."
+else
+  su - "$NEW_USER" -c 'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y'
+fi
 
 # =============================================================================
 # Step 10: Install CKLunarVim for the new user
@@ -293,8 +348,66 @@ su - "$NEW_USER" -c 'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs |
 # =============================================================================
 echo ""
 echo "--- CKLunarVim Setup ---"
-su - "$NEW_USER" -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" && export PATH="$HOME/.cargo/bin:$PATH" && bash <(curl -s https://raw.githubusercontent.com/christopher-kapic/CKLunarVim/master/utils/installer/install.sh)'
-echo "CKLunarVim installed for '$NEW_USER'."
+if [ -x "$USER_HOME/.local/bin/lvim" ]; then
+  echo "CKLunarVim already installed for '$NEW_USER'."
+else
+  su - "$NEW_USER" -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" && export PATH="$HOME/.cargo/bin:$PATH" && bash <(curl -s https://raw.githubusercontent.com/christopher-kapic/CKLunarVim/master/utils/installer/install.sh)'
+  echo "CKLunarVim installed for '$NEW_USER'."
+fi
+
+# =============================================================================
+# Step 11: Workstation CLI tools (optional, --workstation flag)
+# Installs a curated set of CLI tools useful for SSH-based development work.
+# These are installed system-wide so they're shared across all users.
+# =============================================================================
+if $WORKSTATION; then
+  echo ""
+  echo "--- Installing workstation CLI tools ---"
+
+  # apt packages
+  apt-get install -y tmux htop jq
+
+  # GitHub CLI from its official apt repo
+  if ! command -v gh &> /dev/null; then
+    echo "Installing GitHub CLI..."
+    mkdir -p -m 755 /etc/apt/keyrings
+    wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null
+    chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+    apt-get update -qq
+    apt-get install -y gh
+  else
+    echo "gh already installed."
+  fi
+
+  # lazygit from GitHub releases
+  if ! command -v lazygit &> /dev/null; then
+    echo "Installing lazygit..."
+    LAZYGIT_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | grep -Po '"tag_name": "v\K[^"]*')
+    curl -Lo /tmp/lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${LAZYGIT_VERSION}_Linux_x86_64.tar.gz"
+    tar xf /tmp/lazygit.tar.gz -C /tmp lazygit
+    install /tmp/lazygit /usr/local/bin
+    rm -f /tmp/lazygit /tmp/lazygit.tar.gz
+  else
+    echo "lazygit already installed."
+  fi
+
+  # OpenCode and Claude Code: per-user installs (they write into $HOME).
+  # Run as the new user so binaries land in their ~/.local/bin or similar.
+  if ! su - "$NEW_USER" -c 'command -v opencode' &> /dev/null; then
+    echo "Installing OpenCode for '$NEW_USER'..."
+    su - "$NEW_USER" -c 'curl -fsSL https://opencode.ai/install | bash'
+  else
+    echo "OpenCode already installed for '$NEW_USER'."
+  fi
+
+  if ! su - "$NEW_USER" -c 'command -v claude' &> /dev/null; then
+    echo "Installing Claude Code for '$NEW_USER'..."
+    su - "$NEW_USER" -c 'curl -fsSL https://claude.ai/install.sh | bash'
+  else
+    echo "Claude Code already installed for '$NEW_USER'."
+  fi
+fi
 
 # =============================================================================
 # Done!
@@ -314,6 +427,12 @@ echo "  - Powerlevel10k: installed"
 echo "  - Neovim: latest version installed"
 echo "  - CKLunarVim: installed for '$NEW_USER'"
 echo "  - Zsh: default shell for '$NEW_USER'"
+if $WORKSTATION; then
+  echo "  - Workstation tools: tmux, htop, jq, gh, lazygit, opencode, claude-code"
+fi
 echo ""
 echo "IMPORTANT: Before closing this session, verify you can SSH in as '$NEW_USER'"
 echo "in a separate terminal. If you can't, you may lock yourself out!"
+echo ""
+echo "To add another user, re-run this script. System-level setup will be"
+echo "skipped; only per-user setup will run for the new user."
