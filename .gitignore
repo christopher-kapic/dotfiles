@@ -4,3 +4,4 @@ vscode/User/globalStorage/
 vscode/User/History/
 vscode/User/workspaceStorage/
 git/.config/git/config.local
+lvim/.config/lvim/lazy-lock.json
