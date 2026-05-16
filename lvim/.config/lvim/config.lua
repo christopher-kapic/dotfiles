@@ -153,34 +153,6 @@ lvim.plugins = {
       })
     end,
   },
-  -- OpenCode - AI coding assistant integration
-  -- Integrates OpenCode AI assistant with Neovim for editor-aware research, code reviews, and assistance
-  -- Requires: opencode CLI to be installed separately
-  -- Run :checkhealth opencode after installation to verify setup
-  {
-    "NickvanDyke/opencode.nvim",
-    dependencies = {
-      { "folke/snacks.nvim", opts = { input = {}, picker = {}, terminal = {} } },
-    },
-    config = function()
-      vim.g.opencode_opts = {}
-      vim.o.autoread = true
-
-      -- Keymaps for opencode interaction
-      -- <C-a>: Ask opencode with "@this: " context (current selection/buffer)
-      vim.keymap.set({ "n", "x" }, "<C-a>", function() require("opencode").ask("@this: ", { submit = true }) end, { desc = "Ask opencode" })
-      -- <C-x>: Execute opencode action selector
-      vim.keymap.set({ "n", "x" }, "<C-x>", function() require("opencode").select() end, { desc = "Execute opencode action…" })
-      -- <C-.>: Toggle opencode terminal window
-      vim.keymap.set({ "n", "t" }, "<C-.>", function() require("opencode").toggle() end, { desc = "Toggle opencode" })
-
-      -- Operator mode keymaps for adding context to opencode
-      -- go: Add selected range to opencode context
-      vim.keymap.set({ "n", "x" }, "go", function() return require("opencode").operator("@this ") end, { expr = true, desc = "Add range to opencode" })
-      -- goo: Add current line to opencode context
-      vim.keymap.set("n", "goo", function() return require("opencode").operator("@this ") .. "_" end, { expr = true, desc = "Add line to opencode" })
-    end,
-  },
 }
 
 -- ============================================================================
