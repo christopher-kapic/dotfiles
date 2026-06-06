@@ -1,5 +1,5 @@
 [env]
-TERM = "xterm-256color"
+TERM = "alacritty"
 
 [window]
 opacity = 0.83
@@ -10,7 +10,7 @@ decorations = "buttonless"
 title = "Alacritty"
 
 [scrolling]
-history = 10000
+history = 0
 
 [font.normal]
 family = "MesloLGS NF"
@@ -72,7 +72,7 @@ args = ["--login"]
 [[keyboard.bindings]]
 key = "Enter"
 mods = "Shift"
-chars = "\n"
+chars = "\u001b[13;2u"
 
 [[keyboard.bindings]]
 key = "V"
