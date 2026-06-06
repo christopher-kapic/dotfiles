@@ -92,7 +92,8 @@ parts_json=$(echo "$parts_json" | jq --arg text "$prompt" '. + [{"text": $text}]
 # Add input images as base64
 for img in "${input_images[@]}"; do
   mime_type="image/png"
-  case "${img,,}" in
+  img_lower=$(printf '%s' "$img" | tr '[:upper:]' '[:lower:]')
+  case "$img_lower" in
     *.jpg|*.jpeg) mime_type="image/jpeg" ;;
     *.png) mime_type="image/png" ;;
     *.gif) mime_type="image/gif" ;;
