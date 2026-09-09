@@ -145,13 +145,13 @@ EOF
 fi
 
 # =============================================================================
-# Step 5: Install powerlevel10k
+# Step 5: Install starship prompt
 # =============================================================================
-if ! [ -d "$HOME/.powerlevel10k" ]; then
-  echo "Installing powerlevel10k..."
-  git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$HOME/.powerlevel10k"
+if ! command -v starship &> /dev/null; then
+  echo "Installing starship..."
+  curl -sS https://starship.rs/install.sh | sh -s -- --yes
 else
-  echo "powerlevel10k already installed."
+  echo "starship already installed."
 fi
 
 # =============================================================================

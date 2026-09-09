@@ -1,0 +1,139 @@
+"$schema" = 'https://starship.rs/config-schema.json'
+
+add_newline = false
+palette = 'p10k'
+
+# IMPORTANT: top-level keys (format, add_newline, palette) MUST come before any
+# [table] header, otherwise TOML nests them inside that table and Starship
+# silently ignores `format` and falls back to its default layout.
+#
+# Line 1:  (dir) > (git) >  ····  (kube|azure) < (dur time)
+# Line 2:  prompt arrow
+#
+# The git segment is green when the work tree is clean (or has only untracked
+# files, matching p10k) and yellow when there are staged/unstaged changes. To
+# keep the per-second clock refresh cheap, the git status is computed once per
+# command by a precmd hook in .zshrc into $STARSHIP_GIT_TEXT / $STARSHIP_GIT_DIRTY
+# and merely read here.
+#
+# kube/azure use p10k-style "show on command": the zle hook in .zshrc exports
+# $STARSHIP_CMD = the first word of the command being typed, then redraws. The
+# custom modules below gate on it, so a segment only appears while you are
+# typing a matching command. To add a new show-on-command segment, add another
+# [custom.*] block with its own `when` command list (and update grey_sep's
+# list) -- no shell changes needed.
+format = """
+[](fg:blue)\
+$directory\
+${custom.git_clean}\
+${custom.git_dirty}\
+${custom.dir_sep}\
+$fill\
+${custom.kube}\
+${custom.azure}\
+${custom.grey_sep}\
+$cmd_duration\
+$status\
+$time\
+[](fg:grey)\
+$line_break\
+$character"""
+
+# Colours pulled from the Alacritty theme so Starship matches the terminal.
+[palettes.p10k]
+blue    = '#82a9fe' # directory / azure background
+yellow  = '#ffcc02' # git background (dirty)
+green   = '#70bf47' # git background (clean / untracked-only)
+grey    = '#f0f0f0' # time / duration background (light grey)
+magenta = '#bd2bac' # kubernetes background
+light   = '#ffffff' # light text (dir / kube / azure)
+dark    = '#1c1e2b' # text on green / yellow / grey
+dots    = '#585858' # connecting dots
+
+[directory]
+style = 'fg:light bg:blue'
+format = '[ $path ]($style)'
+truncation_length = 0
+truncate_to_repo = false
+home_symbol = '~'
+
+# Git segment (green when clean, yellow when dirty). Implemented as two custom
+# modules -- Starship module styles are static, so a conditional background
+# needs two mutually-exclusive modules. Both just read the cached values that
+# the .zshrc precmd hook computes once per command (no git call per redraw).
+[custom.git_clean]
+description = 'Git segment when the work tree has no staged/unstaged changes.'
+when = 'test -n "$STARSHIP_GIT_TEXT" && test -z "$STARSHIP_GIT_DIRTY"'
+command = 'printf "%s" "$STARSHIP_GIT_TEXT"'
+shell = ['sh']
+format = '[](fg:blue bg:green)[ $output ](fg:dark bg:green)[](fg:green)'
+
+[custom.git_dirty]
+description = 'Git segment when there are staged or unstaged changes.'
+when = 'test -n "$STARSHIP_GIT_TEXT" && test -n "$STARSHIP_GIT_DIRTY"'
+command = 'printf "%s" "$STARSHIP_GIT_TEXT"'
+shell = ['sh']
+format = '[](fg:blue bg:yellow)[ $output ](fg:dark bg:yellow)[](fg:yellow)'
+
+# Closing triangle for the directory segment when NOT in a git repo (the git
+# modules provide their own blue->colour triangle when they render).
+[custom.dir_sep]
+description = 'Blue closing triangle after the path when there is no git segment.'
+when = 'test -z "$STARSHIP_GIT_TEXT"'
+command = 'true'
+shell = ['sh']
+format = '[](fg:blue)'
+
+[fill]
+symbol = '·'
+style = 'fg:dots'
+
+# Kubernetes context (magenta pill). Shown only while typing a kube command.
+# Trailing triangle connects the pill straight into the grey time group.
+[custom.kube]
+description = 'Kubernetes context, shown while typing kubectl/helm/etc.'
+when = 'case "$STARSHIP_CMD" in kubectl|helm|kubens|kubectx|oc|istioctl|kogito|k9s|helmfile|flux|fluxctl|stern|kubeseal|skaffold) exit 0;; *) exit 1;; esac'
+command = 'sh "$HOME/.config/starship/kube-context.sh"'
+shell = ['sh']
+format = '[](fg:magenta)[ ⎈ $output ](fg:light bg:magenta)[](fg:grey bg:magenta)'
+
+# Azure subscription (blue pill). Shown only while typing an azure command.
+[custom.azure]
+description = 'Azure subscription, shown while typing az/terraform/etc.'
+when = 'case "$STARSHIP_CMD" in az|terraform|terragrunt|pulumi) exit 0;; *) exit 1;; esac'
+command = 'sh "$HOME/.config/starship/azure-sub.sh"'
+shell = ['sh']
+format = '[](fg:blue)[ 󰠅 $output ](fg:light bg:blue)[](fg:grey bg:blue)'
+
+# Plain grey entrance triangle for the time group -- rendered only when no
+# show-on-command pill is active (the pills provide their own grey transition).
+# Keep this command list in sync with the kube/azure `when` lists above.
+[custom.grey_sep]
+description = 'Grey entrance triangle when no kube/azure pill is showing.'
+when = 'case "$STARSHIP_CMD" in kubectl|helm|kubens|kubectx|oc|istioctl|kogito|k9s|helmfile|flux|fluxctl|stern|kubeseal|skaffold|az|terraform|terragrunt|pulumi) exit 1;; *) exit 0;; esac'
+command = 'true'
+shell = ['sh']
+format = '[](fg:grey)'
+
+[cmd_duration]
+min_time = 3000
+show_milliseconds = false
+style = 'fg:dark bg:grey'
+format = '[  $duration ]($style)'
+
+[status]
+disabled = false
+style = 'fg:dark bg:grey'
+symbol = ' '
+format = '[$symbol$status ]($style)'
+
+[time]
+disabled = false
+time_format = '%H:%M:%S'
+style = 'fg:dark bg:grey'
+format = '[ $time ]($style)'
+
+[character]
+success_symbol = '[❯](bold #70bf47)'
+error_symbol = '[❯](bold #f88c6c)'
+vimcmd_symbol = '[❮](bold #70bf47)'

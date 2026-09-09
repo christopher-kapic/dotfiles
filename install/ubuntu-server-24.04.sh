@@ -14,7 +14,7 @@ set -e
 #   2. Configure SSH (key-based auth only, no root login)
 #   3. Set up UFW firewall
 #   4. Set up fail2ban for SSH brute-force protection
-#   5. Clone dotfiles and set up stow, powerlevel10k, and zshrc for the new user
+#   5. Clone dotfiles and set up stow, starship, and zshrc for the new user
 #   6. Install Neovim (latest from GitHub releases)
 #   7. Install LunaVim for the new user
 #   8. Set zsh as the default shell for the new user
@@ -221,7 +221,7 @@ echo "--- Installing dependencies ---"
 apt-get install -y git curl wget build-essential unzip stow openssh-server
 
 # =============================================================================
-# Step 7: Clone dotfiles, stow packages, and set up powerlevel10k
+# Step 7: Clone dotfiles, stow packages, and set up starship
 # =============================================================================
 echo ""
 echo "--- Dotfiles Setup for '$NEW_USER' ---"
@@ -269,12 +269,12 @@ if ! [ -f "$USER_HOME/.zshrc" ]; then
   chown "$NEW_USER:$NEW_USER" "$USER_HOME/.zshrc"
 fi
 
-# Install powerlevel10k
-if ! [ -d "$USER_HOME/.powerlevel10k" ]; then
-  echo "Installing powerlevel10k..."
-  su - "$NEW_USER" -c 'git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$HOME/.powerlevel10k"'
+# Install starship prompt
+if ! command -v starship &> /dev/null; then
+  echo "Installing starship..."
+  curl -sS https://starship.rs/install.sh | sh -s -- --yes
 else
-  echo "powerlevel10k already installed."
+  echo "starship already installed."
 fi
 
 # =============================================================================
@@ -435,7 +435,7 @@ echo "  - SSH: key-based auth only, root login disabled"
 echo "  - UFW: firewall enabled (check 'ufw status' for open ports)"
 echo "  - fail2ban: 24h ban after 5 failed SSH attempts"
 echo "  - Dotfiles: cloned, stowed (git, shell, zsh, lvim, scripts, tmux)"
-echo "  - Powerlevel10k: installed"
+echo "  - Starship: installed"
 echo "  - Neovim: latest version installed"
 echo "  - LunaVim: installed for '$NEW_USER'"
 echo "  - Zsh: default shell for '$NEW_USER'"

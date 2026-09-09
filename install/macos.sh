@@ -130,8 +130,9 @@ EOF
   echo "Git user config written to ~/.config/git/config.local"
 fi
 
-if ! [ -d "$HOME/.powerlevel10k" ]; then
-  git clone --depth=1 https://github.com/romkatv/powerlevel10k.git $HOME/.powerlevel10k
+if ! command -v starship &> /dev/null; then
+  echo "Installing starship prompt..."
+  brew install starship
 fi
 
 mkdir -p "$HOME/Library/Fonts"
