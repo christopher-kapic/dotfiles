@@ -208,7 +208,7 @@ if command -v nvim &> /dev/null; then
   nvim_version=$(nvim --version 2>/dev/null | head -1 | sed -n 's/.*v\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\).*/\1 \2 \3/p')
   read -r maj min pat <<< "$nvim_version"
   vnum=$((maj*10000 + min*100 + pat))
-  if [ -n "$vnum" ] && [ "$vnum" -ge 1105 ]; then
+  if [ -n "$vnum" ] && [ "$vnum" -ge 1100 ]; then
     neovim_ok=1
     echo "Neovim already installed: $(nvim --version | head -1)"
   fi
@@ -225,13 +225,25 @@ if [ -z "$neovim_ok" ]; then
 fi
 
 # =============================================================================
-# Step 10: Install CKLunarVim
+# Step 10: Install LunaVim
+# https://github.com/christopher-kapic/LunaVim
+# The executable is still `lvim` and the config still lives in ~/.config/lvim.
 # =============================================================================
-if ! command -v lvim &> /dev/null && ! [ -x "$HOME/.local/bin/lvim" ]; then
-  echo "Installing CKLunarVim..."
-  bash <(curl -s https://raw.githubusercontent.com/christopher-kapic/CKLunarVim/master/utils/installer/install.sh)
+LUNAVIM_INSTALLER_URL="https://raw.githubusercontent.com/christopher-kapic/LunaVim/master/scripts/install.sh"
+
+if [ -d "$HOME/.local/share/lunavim/.git" ]; then
+  echo "LunaVim already installed."
 else
-  echo "CKLunarVim already installed."
+  # LunaVim's installer refuses to overwrite a LunarVim/CKLunarVim launcher
+  # unless --force is given, so detect a prior install and migrate it.
+  lunavim_args=()
+  if [ -e "$HOME/.local/share/lunarvim" ] || [ -e "$HOME/.local/bin/lvim" ]; then
+    echo "Existing LunarVim/CKLunarVim install detected - replacing the lvim launcher with LunaVim."
+    echo "The old ~/.local/share/lunarvim directory is left on disk; remove it once you're happy."
+    lunavim_args+=(--force)
+  fi
+  echo "Installing LunaVim..."
+  curl -sL "$LUNAVIM_INSTALLER_URL" | bash -s -- "${lunavim_args[@]}"
 fi
 
 # =============================================================================
@@ -354,7 +366,7 @@ echo "Summary:"
 echo "  - Dotfiles stowed"
 echo "  - Zsh: default shell (log out and back in if just changed)"
 echo "  - Neovim: latest version installed"
-echo "  - CKLunarVim: installed"
+echo "  - LunaVim: installed"
 echo "  - Node.js: installed via nvm"
 echo "  - Rust: installed via rustup"
 echo "  - Fonts: MesloLGS NF installed"

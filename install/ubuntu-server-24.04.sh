@@ -16,7 +16,7 @@ set -e
 #   4. Set up fail2ban for SSH brute-force protection
 #   5. Clone dotfiles and set up stow, powerlevel10k, and zshrc for the new user
 #   6. Install Neovim (latest from GitHub releases)
-#   7. Install CKLunarVim for the new user
+#   7. Install LunaVim for the new user
 #   8. Set zsh as the default shell for the new user
 #
 # Flags:
@@ -214,7 +214,7 @@ chsh -s "$(which zsh)" "$NEW_USER"
 echo "Zsh set as default shell for '$NEW_USER'."
 
 # =============================================================================
-# Step 6: Install dependencies needed for Neovim and CKLunarVim
+# Step 6: Install dependencies needed for Neovim and LunaVim
 # =============================================================================
 echo ""
 echo "--- Installing dependencies ---"
@@ -286,13 +286,13 @@ fi
 echo ""
 echo "--- Neovim Setup ---"
 
-# Skip if Neovim >= 0.11.5 is already installed
+# Skip if Neovim >= 0.11 is already installed
 neovim_ok=
 if command -v nvim &> /dev/null; then
   nvim_version=$(nvim --version 2>/dev/null | head -1 | sed -n 's/.*v\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\).*/\1 \2 \3/p')
   read -r maj min pat <<< "$nvim_version"
   vnum=$((maj*10000 + min*100 + pat))
-  if [ -n "$vnum" ] && [ "$vnum" -ge 1105 ]; then
+  if [ -n "$vnum" ] && [ "$vnum" -ge 1100 ]; then
     neovim_ok=1
     echo "Neovim already installed: $(nvim --version | head -1)"
   fi
@@ -317,7 +317,7 @@ fi
 
 # =============================================================================
 # Step 9: Install nvm, Node.js, and Rust for the new user
-# These are prerequisites for CKLunarVim. We run them as the new user so
+# These are prerequisites for LunaVim. We run them as the new user so
 # they're installed in the user's home directory, not system-wide.
 # =============================================================================
 echo ""
@@ -342,17 +342,29 @@ else
 fi
 
 # =============================================================================
-# Step 10: Install CKLunarVim for the new user
-# CKLunarVim is a custom LunarVim distribution. We install it as the new user
-# so the configuration lands in their home directory.
+# Step 10: Install LunaVim for the new user
+# LunaVim (https://github.com/christopher-kapic/LunaVim) is a Neovim
+# distribution descended from LunarVim. The executable is still `lvim` and the
+# config still lives in ~/.config/lvim. We install it as the new user so the
+# checkout and configuration land in their home directory.
 # =============================================================================
 echo ""
-echo "--- CKLunarVim Setup ---"
-if [ -x "$USER_HOME/.local/bin/lvim" ]; then
-  echo "CKLunarVim already installed for '$NEW_USER'."
+echo "--- LunaVim Setup ---"
+LUNAVIM_INSTALLER_URL="https://raw.githubusercontent.com/christopher-kapic/LunaVim/master/scripts/install.sh"
+
+if [ -d "$USER_HOME/.local/share/lunavim/.git" ]; then
+  echo "LunaVim already installed for '$NEW_USER'."
 else
-  su - "$NEW_USER" -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" && export PATH="$HOME/.cargo/bin:$PATH" && bash <(curl -s https://raw.githubusercontent.com/christopher-kapic/CKLunarVim/master/utils/installer/install.sh)'
-  echo "CKLunarVim installed for '$NEW_USER'."
+  # LunaVim's installer refuses to overwrite a LunarVim/CKLunarVim launcher
+  # unless --force is given, so detect a prior install and migrate it.
+  LUNAVIM_ARGS=
+  if [ -e "$USER_HOME/.local/share/lunarvim" ] || [ -e "$USER_HOME/.local/bin/lvim" ]; then
+    echo "Existing LunarVim/CKLunarVim install detected for '$NEW_USER' - replacing the lvim launcher with LunaVim."
+    echo "The old ~/.local/share/lunarvim directory is left on disk; remove it once you're happy."
+    LUNAVIM_ARGS="--force"
+  fi
+  su - "$NEW_USER" -c "export NVM_DIR=\"\$HOME/.nvm\"; [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\"; export PATH=\"\$HOME/.cargo/bin:\$PATH\"; curl -sL '$LUNAVIM_INSTALLER_URL' | bash -s -- $LUNAVIM_ARGS"
+  echo "LunaVim installed for '$NEW_USER'."
 fi
 
 # =============================================================================
@@ -425,7 +437,7 @@ echo "  - fail2ban: 24h ban after 5 failed SSH attempts"
 echo "  - Dotfiles: cloned, stowed (git, shell, zsh, lvim, scripts, tmux)"
 echo "  - Powerlevel10k: installed"
 echo "  - Neovim: latest version installed"
-echo "  - CKLunarVim: installed for '$NEW_USER'"
+echo "  - LunaVim: installed for '$NEW_USER'"
 echo "  - Zsh: default shell for '$NEW_USER'"
 if $WORKSTATION; then
   echo "  - Workstation tools: tmux, htop, jq, gh, lazygit, opencode, claude-code"

@@ -166,24 +166,38 @@ then
   source "$HOME/.cargo/env"
 fi
 
-# Neovim 0.11.5+ required for CKLunarVim
+# Neovim 0.11+ required for LunaVim
 neovim_ok=
 if command -v nvim &> /dev/null; then
   nvim_version=$(nvim --version 2>/dev/null | head -1 | sed -n 's/.*v\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\).*/\1 \2 \3/p')
   read -r maj min pat <<< "$nvim_version"
   vnum=$((maj*10000 + min*100 + pat))
-  if [ -n "$vnum" ] && [ "$vnum" -ge 1105 ]; then
+  if [ -n "$vnum" ] && [ "$vnum" -ge 1100 ]; then
     neovim_ok=1
   fi
 fi
 if [ -z "$neovim_ok" ]; then
-  echo "neovim could not be found or is older than 0.11.5 - installing now..."
+  echo "neovim could not be found or is older than 0.11 - installing now..."
   brew install neovim
 fi
 
-if ! command -v lvim &> /dev/null && ! [ -x "$HOME/.local/bin/lvim" ]; then
-  echo "CKLunarVim (lvim) could not be found - installing now..."
-  bash <(curl -s https://raw.githubusercontent.com/christopher-kapic/CKLunarVim/master/utils/installer/install.sh)
+# LunaVim - https://github.com/christopher-kapic/LunaVim
+# The executable is still `lvim` and the config still lives in ~/.config/lvim.
+LUNAVIM_INSTALLER_URL="https://raw.githubusercontent.com/christopher-kapic/LunaVim/master/scripts/install.sh"
+
+if [ -d "$HOME/.local/share/lunavim/.git" ]; then
+  echo "LunaVim already installed."
+else
+  # LunaVim's installer refuses to overwrite a LunarVim/CKLunarVim launcher
+  # unless --force is given, so detect a prior install and migrate it.
+  lunavim_args=()
+  if [ -e "$HOME/.local/share/lunarvim" ] || [ -e "$HOME/.local/bin/lvim" ]; then
+    echo "Existing LunarVim/CKLunarVim install detected - replacing the lvim launcher with LunaVim."
+    echo "The old ~/.local/share/lunarvim directory is left on disk; remove it once you're happy."
+    lunavim_args+=(--force)
+  fi
+  echo "LunaVim (lvim) could not be found - installing now..."
+  curl -sL "$LUNAVIM_INSTALLER_URL" | bash -s -- "${lunavim_args[@]}"
 fi
 
 # =============================================================================
