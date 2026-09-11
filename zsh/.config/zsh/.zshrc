@@ -81,42 +81,71 @@ source $HOME/.config/shell/env
 if command -v starship >/dev/null; then
   eval "$(starship init zsh)"
 
+  # Default state for the very first prompt draw of a new shell (before any
+  # precmd/keypress hook below has had a chance to run).
+  export STARSHIP_NO_PILL=1
+
   # --- p10k-style "show on command" -----------------------------------------
-  # Starship draws the prompt once per redraw, so to mimic p10k's
-  # SHOW_ON_COMMAND we export $STARSHIP_CMD = the first word of the command
-  # being typed and force a redraw. The [custom.*] modules in starship.toml
-  # decide which segment (if any) to show for that command. This is generic:
-  # adding a new show-on-command segment only needs a new [custom.*] block in
-  # starship.toml -- no changes here. (Only the first word is used, so segments
-  # do not react to commands after a pipe.)
+  # Starship draws the prompt once per redraw (every second, via TMOUT below),
+  # and previously every [custom.*] module forked a fresh `sh` just to test its
+  # `when` clause on every one of those redraws -- expensive and, under load,
+  # occasionally slow enough to hit Starship's command_timeout. To avoid that,
+  # this hook does the classification (and, for kube/azure, the one real
+  # subprocess call) *once*, only when the active command word actually
+  # changes, and exports plain text into env vars. The [env_var.*] modules in
+  # starship.toml then just read those vars directly inside Starship's own
+  # process -- zero forks per redraw. (Only the first word is used, so
+  # segments do not react to commands after a pipe.)
+  typeset -g _starship_cmd_group=
   _starship_show_on_command() {
     local -a words
     words=(${(z)BUFFER})
     local cmd=${words[1]}
     [[ $cmd == sudo ]] && cmd=${words[2]}
-    if [[ $cmd != ${STARSHIP_CMD:-} ]]; then
-      [[ -n $cmd ]] && export STARSHIP_CMD=$cmd || unset STARSHIP_CMD
-      zle reset-prompt
-    fi
+    local group=
+    case $cmd in
+      kubectl|helm|kubens|kubectx|oc|istioctl|kogito|k9s|helmfile|flux|fluxctl|stern|kubeseal|skaffold) group=kube ;;
+      az|terraform|terragrunt|pulumi) group=azure ;;
+    esac
+    [[ $group == $_starship_cmd_group ]] && return
+    _starship_cmd_group=$group
+    case $group in
+      kube)
+        export STARSHIP_KUBE_TEXT=$(sh "$HOME/.config/starship/kube-context.sh" 2>/dev/null)
+        unset STARSHIP_AZURE_TEXT
+        ;;
+      azure)
+        export STARSHIP_AZURE_TEXT=$(sh "$HOME/.config/starship/azure-sub.sh" 2>/dev/null)
+        unset STARSHIP_KUBE_TEXT
+        ;;
+      *) unset STARSHIP_KUBE_TEXT STARSHIP_AZURE_TEXT ;;
+    esac
+    [[ -n $group ]] && unset STARSHIP_NO_PILL || export STARSHIP_NO_PILL=1
+    zle reset-prompt
   }
   autoload -Uz add-zle-hook-widget add-zsh-hook
   add-zle-hook-widget line-pre-redraw _starship_show_on_command
-  # Clear the flag as soon as a command is submitted so a stale segment does
+  # Clear the flags as soon as a command is submitted so a stale segment does
   # not linger on the next prompt (the scrollback line keeps whatever showed
   # while you were typing).
-  _starship_clear_show_on_command() { unset STARSHIP_CMD }
+  _starship_clear_show_on_command() {
+    _starship_cmd_group=
+    unset STARSHIP_KUBE_TEXT STARSHIP_AZURE_TEXT
+    export STARSHIP_NO_PILL=1
+  }
   add-zsh-hook preexec _starship_clear_show_on_command
 
   # Cache the git status once per command (precmd), not on every redraw, so the
-  # per-second clock refresh stays cheap even in large repositories. The git
-  # custom modules in starship.toml just read these exported values.
+  # per-second clock refresh stays cheap even in large repositories. The
+  # [env_var.*] git modules in starship.toml just read these exported values
+  # directly (no forked shell per redraw).
   _starship_git_cache() {
     local text
     text=$(sh "$HOME/.config/starship/git-status.sh" 2>/dev/null)
     case $? in
-      0) export STARSHIP_GIT_TEXT=$text; unset STARSHIP_GIT_DIRTY ;;
-      2) export STARSHIP_GIT_TEXT=$text; export STARSHIP_GIT_DIRTY=1 ;;
-      *) unset STARSHIP_GIT_TEXT STARSHIP_GIT_DIRTY ;;
+      0) export STARSHIP_GIT_CLEAN_TEXT=$text; unset STARSHIP_GIT_DIRTY_TEXT STARSHIP_NO_GIT ;;
+      2) export STARSHIP_GIT_DIRTY_TEXT=$text; unset STARSHIP_GIT_CLEAN_TEXT STARSHIP_NO_GIT ;;
+      *) unset STARSHIP_GIT_CLEAN_TEXT STARSHIP_GIT_DIRTY_TEXT; export STARSHIP_NO_GIT=1 ;;
     esac
   }
   add-zsh-hook precmd _starship_git_cache

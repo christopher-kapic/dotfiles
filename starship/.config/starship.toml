@@ -2,6 +2,11 @@
 
 add_newline = false
 palette = 'p10k'
+# Safety net for the git-status.sh / kube-context.sh / azure-sub.sh scripts,
+# which still run their own subprocess occasionally (once per command / once
+# per typed-command-word change, not per redraw). 500ms default is tight in
+# large repos or when kube-context.sh falls back to `kubectl`.
+command_timeout = 2000
 
 # IMPORTANT: top-level keys (format, add_newline, palette) MUST come before any
 # [table] header, otherwise TOML nests them inside that table and Starship
@@ -12,26 +17,28 @@ palette = 'p10k'
 #
 # The git segment is green when the work tree is clean (or has only untracked
 # files, matching p10k) and yellow when there are staged/unstaged changes. To
-# keep the per-second clock refresh cheap, the git status is computed once per
-# command by a precmd hook in .zshrc into $STARSHIP_GIT_TEXT / $STARSHIP_GIT_DIRTY
-# and merely read here.
+# keep the per-second clock refresh cheap (no forked shell per redraw), the
+# git status is computed once per command by a precmd hook in .zshrc, which
+# exports the final display text directly into $STARSHIP_GIT_CLEAN_TEXT /
+# $STARSHIP_GIT_DIRTY_TEXT / $STARSHIP_NO_GIT. The [env_var.*] modules below
+# just read those vars in-process (env_var never forks a shell).
 #
-# kube/azure use p10k-style "show on command": the zle hook in .zshrc exports
-# $STARSHIP_CMD = the first word of the command being typed, then redraws. The
-# custom modules below gate on it, so a segment only appears while you are
-# typing a matching command. To add a new show-on-command segment, add another
-# [custom.*] block with its own `when` command list (and update grey_sep's
-# list) -- no shell changes needed.
+# kube/azure use p10k-style "show on command": the zle hook in .zshrc detects
+# the first word of the command being typed, runs kube-context.sh/azure-sub.sh
+# at most once per change, and exports the result into $STARSHIP_KUBE_TEXT /
+# $STARSHIP_AZURE_TEXT / $STARSHIP_NO_PILL. To add a new show-on-command
+# segment, extend the case statement in .zshrc's _starship_show_on_command and
+# add a matching [env_var.*] block here.
 format = """
 [](fg:blue)\
 $directory\
-${custom.git_clean}\
-${custom.git_dirty}\
-${custom.dir_sep}\
+${env_var.git_clean}\
+${env_var.git_dirty}\
+${env_var.dir_sep}\
 $fill\
-${custom.kube}\
-${custom.azure}\
-${custom.grey_sep}\
+${env_var.kube}\
+${env_var.azure}\
+${env_var.grey_sep}\
 $cmd_duration\
 $status\
 $time\
@@ -57,31 +64,25 @@ truncation_length = 0
 truncate_to_repo = false
 home_symbol = '~'
 
-# Git segment (green when clean, yellow when dirty). Implemented as two custom
-# modules -- Starship module styles are static, so a conditional background
-# needs two mutually-exclusive modules. Both just read the cached values that
-# the .zshrc precmd hook computes once per command (no git call per redraw).
-[custom.git_clean]
-description = 'Git segment when the work tree has no staged/unstaged changes.'
-when = 'test -n "$STARSHIP_GIT_TEXT" && test -z "$STARSHIP_GIT_DIRTY"'
-command = 'printf "%s" "$STARSHIP_GIT_TEXT"'
-shell = ['sh']
-format = '[](fg:blue bg:green)[ $output ](fg:dark bg:green)[](fg:green)'
+# Git segment (green when clean, yellow when dirty). Implemented as two
+# mutually-exclusive env_var modules -- Starship module styles are static, so
+# a conditional background needs two modules, one per state. Both just read
+# the text the .zshrc precmd hook computes once per command (no git call, and
+# no forked shell at all, on the per-second clock redraw).
+[env_var.git_clean]
+variable = 'STARSHIP_GIT_CLEAN_TEXT'
+format = '[](fg:blue bg:green)[ $env_value ](fg:dark bg:green)[](fg:green)'
 
-[custom.git_dirty]
-description = 'Git segment when there are staged or unstaged changes.'
-when = 'test -n "$STARSHIP_GIT_TEXT" && test -n "$STARSHIP_GIT_DIRTY"'
-command = 'printf "%s" "$STARSHIP_GIT_TEXT"'
-shell = ['sh']
-format = '[](fg:blue bg:yellow)[ $output ](fg:dark bg:yellow)[](fg:yellow)'
+[env_var.git_dirty]
+variable = 'STARSHIP_GIT_DIRTY_TEXT'
+format = '[](fg:blue bg:yellow)[ $env_value ](fg:dark bg:yellow)[](fg:yellow)'
 
 # Closing triangle for the directory segment when NOT in a git repo (the git
-# modules provide their own blue->colour triangle when they render).
-[custom.dir_sep]
-description = 'Blue closing triangle after the path when there is no git segment.'
-when = 'test -z "$STARSHIP_GIT_TEXT"'
-command = 'true'
-shell = ['sh']
+# modules above provide their own blue->colour triangle when they render).
+# $STARSHIP_NO_GIT is exported by the same precmd hook only when outside a
+# work tree, so this and the two modules above are mutually exclusive.
+[env_var.dir_sep]
+variable = 'STARSHIP_NO_GIT'
 format = '[](fg:blue)'
 
 [fill]
@@ -89,30 +90,26 @@ symbol = '·'
 style = 'fg:dots'
 
 # Kubernetes context (magenta pill). Shown only while typing a kube command.
-# Trailing triangle connects the pill straight into the grey time group.
-[custom.kube]
-description = 'Kubernetes context, shown while typing kubectl/helm/etc.'
-when = 'case "$STARSHIP_CMD" in kubectl|helm|kubens|kubectx|oc|istioctl|kogito|k9s|helmfile|flux|fluxctl|stern|kubeseal|skaffold) exit 0;; *) exit 1;; esac'
-command = 'sh "$HOME/.config/starship/kube-context.sh"'
-shell = ['sh']
-format = '[](fg:magenta)[ ⎈ $output ](fg:light bg:magenta)[](fg:grey bg:magenta)'
+# $STARSHIP_KUBE_TEXT is populated once (not per redraw) by the .zshrc
+# show-on-command hook, which runs kube-context.sh only when the typed
+# command's first word changes. Trailing triangle connects the pill straight
+# into the grey time group.
+[env_var.kube]
+variable = 'STARSHIP_KUBE_TEXT'
+format = '[](fg:magenta)[ ⎈ $env_value ](fg:light bg:magenta)[](fg:grey bg:magenta)'
 
 # Azure subscription (blue pill). Shown only while typing an azure command.
-[custom.azure]
-description = 'Azure subscription, shown while typing az/terraform/etc.'
-when = 'case "$STARSHIP_CMD" in az|terraform|terragrunt|pulumi) exit 0;; *) exit 1;; esac'
-command = 'sh "$HOME/.config/starship/azure-sub.sh"'
-shell = ['sh']
-format = '[](fg:blue)[ 󰠅 $output ](fg:light bg:blue)[](fg:grey bg:blue)'
+# $STARSHIP_AZURE_TEXT is populated the same way, via azure-sub.sh.
+[env_var.azure]
+variable = 'STARSHIP_AZURE_TEXT'
+format = '[](fg:blue)[ 󰠅 $env_value ](fg:light bg:blue)[](fg:grey bg:blue)'
 
 # Plain grey entrance triangle for the time group -- rendered only when no
-# show-on-command pill is active (the pills provide their own grey transition).
-# Keep this command list in sync with the kube/azure `when` lists above.
-[custom.grey_sep]
-description = 'Grey entrance triangle when no kube/azure pill is showing.'
-when = 'case "$STARSHIP_CMD" in kubectl|helm|kubens|kubectx|oc|istioctl|kogito|k9s|helmfile|flux|fluxctl|stern|kubeseal|skaffold|az|terraform|terragrunt|pulumi) exit 1;; *) exit 0;; esac'
-command = 'true'
-shell = ['sh']
+# show-on-command pill is active (the pills provide their own grey
+# transition). $STARSHIP_NO_PILL is exported by the same .zshrc hook whenever
+# neither kube nor azure is active.
+[env_var.grey_sep]
+variable = 'STARSHIP_NO_PILL'
 format = '[](fg:grey)'
 
 [cmd_duration]
