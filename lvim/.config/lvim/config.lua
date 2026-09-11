@@ -89,9 +89,9 @@ lvim.builtin.mason.ui.border = "rounded"
 -- ============================================================================
 
 -- Toggle MiniMap with 'm' key in normal mode
-lvim.keys.normal_mode.m = function()
-  require("mini.map").toggle()
-end
+-- lvim.keys.normal_mode.m = function()
+--   require("mini.map").toggle()
+-- end
 
 -- ============================================================================
 -- Custom Plugins
@@ -110,49 +110,49 @@ lvim.plugins = {
     end,
   },
   -- MiniMap - code minimap sidebar
-  {
-    "echasnovski/mini.map",
-    branch = "stable",
-    config = function()
-      local map = require("mini.map")
-      map.setup({
-        -- Integrate with builtin search and diagnostics
-        integrations = {
-          map.gen_integration.builtin_search(),
-          map.gen_integration.diagnostic({
-            error = "DiagnosticFloatingError",
-            warn = "DiagnosticFloatingWarn",
-            info = "DiagnosticFloatingInfo",
-            hint = "DiagnosticFloatingHint",
-          }),
-        },
-        -- Use dot symbols for the minimap
-        symbols = {
-          encode = map.gen_encode_symbols.dot("4x2"),
-        },
-        -- Minimap window configuration
-        window = {
-          side = "right", -- Position on the right side
-          width = 8, -- Width in characters (set to 1 for pure scrollbar)
-          winblend = 100, -- Transparency level (0-100)
-          show_integration_count = false, -- Don't show integration count
-        },
-      })
-
-      -- Hide statusline and winbar for minimap windows to prevent "content" text from showing
-      vim.api.nvim_create_autocmd({ "BufEnter", "WinEnter" }, {
-        pattern = "*",
-        callback = function()
-          if vim.bo.filetype == "minimap" then
-            local win_id = vim.api.nvim_get_current_win()
-            vim.wo[win_id].statusline = ""
-            vim.wo[win_id].winbar = ""
-          end
-        end,
-        desc = "Hide statusline and winbar in minimap windows",
-      })
-    end,
-  },
+  -- {
+  --   "echasnovski/mini.map",
+  --   branch = "stable",
+  --   config = function()
+  --     local map = require("mini.map")
+  --     map.setup({
+  --       -- Integrate with builtin search and diagnostics
+  --       integrations = {
+  --         map.gen_integration.builtin_search(),
+  --         map.gen_integration.diagnostic({
+  --           error = "DiagnosticFloatingError",
+  --           warn = "DiagnosticFloatingWarn",
+  --           info = "DiagnosticFloatingInfo",
+  --           hint = "DiagnosticFloatingHint",
+  --         }),
+  --       },
+  --       -- Use dot symbols for the minimap
+  --       symbols = {
+  --         encode = map.gen_encode_symbols.dot("4x2"),
+  --       },
+  --       -- Minimap window configuration
+  --       window = {
+  --         side = "right",                 -- Position on the right side
+  --         width = 8,                      -- Width in characters (set to 1 for pure scrollbar)
+  --         winblend = 100,                 -- Transparency level (0-100)
+  --         show_integration_count = false, -- Don't show integration count
+  --       },
+  --     })
+  --
+  --     -- Hide statusline and winbar for minimap windows to prevent "content" text from showing
+  --     vim.api.nvim_create_autocmd({ "BufEnter", "WinEnter" }, {
+  --       pattern = "*",
+  --       callback = function()
+  --         if vim.bo.filetype == "minimap" then
+  --           local win_id = vim.api.nvim_get_current_win()
+  --           vim.wo[win_id].statusline = ""
+  --           vim.wo[win_id].winbar = ""
+  --         end
+  --       end,
+  --       desc = "Hide statusline and winbar in minimap windows",
+  --     })
+  --   end,
+  -- },
 }
 
 -- ============================================================================
@@ -160,44 +160,44 @@ lvim.plugins = {
 -- ============================================================================
 
 -- Autocommands for MiniMap - automatically open/close based on filetype
-lvim.autocommands = {
-  {
-    { "BufEnter", "Filetype" },
-    {
-      desc = "Open mini.map and exclude some filetypes",
-      pattern = { "*" },
-      callback = function()
-        local exclude_ft = {
-          "qf", -- Quickfix
-          "NvimTree", -- File explorer
-          "toggleterm", -- Terminal
-          "TelescopePrompt", -- Telescope prompts
-          "alpha", -- Dashboard
-          "netrw", -- Netrw file browser
-          "dirvish", -- Dirvish file browser
-          "lir", -- Lir file browser
-        }
-
-        local map = require("mini.map")
-        -- Disable minimap for excluded filetypes
-        if vim.tbl_contains(exclude_ft, vim.o.filetype) then
-          vim.b.minimap_disable = true
-          map.close()
-        -- Open minimap only for regular file buffers (not directories)
-        elseif vim.o.buftype == "" then
-          local bufname = vim.api.nvim_buf_get_name(0)
-          -- Only open minimap if buffer has a name and it's a file (not a directory)
-          if bufname ~= "" and vim.fn.filereadable(bufname) == 1 and vim.fn.isdirectory(bufname) == 0 then
-            map.open()
-          else
-            -- Close minimap for directories or empty buffers
-            map.close()
-          end
-        end
-      end,
-    },
-  },
-}
+-- lvim.autocommands = {
+--   {
+--     { "BufEnter", "Filetype" },
+--     -- {
+--     --   desc = "Open mini.map and exclude some filetypes",
+--     --   pattern = { "*" },
+--     --   callback = function()
+--     --     local exclude_ft = {
+--     --       "qf",              -- Quickfix
+--     --       "NvimTree",        -- File explorer
+--     --       "toggleterm",      -- Terminal
+--     --       "TelescopePrompt", -- Telescope prompts
+--     --       "alpha",           -- Dashboard
+--     --       "netrw",           -- Netrw file browser
+--     --       "dirvish",         -- Dirvish file browser
+--     --       "lir",             -- Lir file browser
+--     --     }
+--     --
+--     --     local map = require("mini.map")
+--     --     -- Disable minimap for excluded filetypes
+--     --     if vim.tbl_contains(exclude_ft, vim.o.filetype) then
+--     --       vim.b.minimap_disable = true
+--     --       map.close()
+--     --       -- Open minimap only for regular file buffers (not directories)
+--     --     elseif vim.o.buftype == "" then
+--     --       local bufname = vim.api.nvim_buf_get_name(0)
+--     --       -- Only open minimap if buffer has a name and it's a file (not a directory)
+--     --       if bufname ~= "" and vim.fn.filereadable(bufname) == 1 and vim.fn.isdirectory(bufname) == 0 then
+--     --         map.open()
+--     --       else
+--     --         -- Close minimap for directories or empty buffers
+--     --         map.close()
+--     --       end
+--     --     end
+--     --   end,
+--     -- },
+--   },
+-- }
 
 -- Enable word wrap for all files
 vim.api.nvim_create_autocmd("BufEnter", {
