@@ -8,6 +8,8 @@ Installation scripts for bootstrapping new machines with Christopher Kapic's dot
 
 Full macOS development environment setup: Homebrew, stow, dotfiles, nvm, Node.js, Rust, Neovim, LunaVim, and macOS system preferences (dock, Finder, mouse).
 
+The optional applications menu includes `alacritty`, which is built from source (`make app` in a temporary clone under `/tmp`, removed afterwards). `Alacritty.app` is copied to `/Applications` and the `alacritty` binary to `~/.local/bin/alacritty`.
+
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/christopher-kapic/dotfiles/master/install/macos.sh)
 ```
@@ -22,6 +24,8 @@ bash ~/dotfiles/install/macos.sh
 
 Idempotent desktop setup script. Installs dev tools (stow, nvm, Node.js, Rust, Neovim, LunaVim), stows dotfiles with an interactive picker, installs fonts, and sets zsh as the default shell. Run as your normal user (not root).
 
+The optional packages menu includes `openssh-server` (enables the SSH service and optionally authorizes a public key) and `netbird` (optionally connects with a setup key).
+
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/christopher-kapic/dotfiles/master/install/ubuntu-desktop-24.04.sh)
 ```
@@ -34,7 +38,9 @@ bash ~/dotfiles/install/ubuntu-desktop-24.04.sh
 
 ### Ubuntu Server 24.04
 
-Interactive server hardening and setup script. Creates a new user, configures SSH (key-based auth only, no root login), sets up UFW firewall and fail2ban, installs latest Neovim from GitHub, installs LunaVim, and sets zsh as the default shell. Must be run as root.
+Interactive server hardening and setup script. Creates a new user, configures SSH (key-based auth only, no root login), sets up UFW firewall and fail2ban, installs latest Neovim from GitHub, installs LunaVim, and sets zsh as the default shell. Optionally installs NetBird at the end. Must be run as root.
+
+The SSH key prompt only accepts a valid public key; pasting a private key is rejected.
 
 The script is idempotent: re-run it to add additional users. System-level setup (SSH hardening, UFW, fail2ban, Neovim) is skipped on subsequent runs, and only per-user setup (dotfiles, nvm/Node, Rust, LunaVim) runs for the new user.
 

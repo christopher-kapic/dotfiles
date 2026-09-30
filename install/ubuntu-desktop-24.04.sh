@@ -15,6 +15,32 @@ echo "  Christopher Kapic's dotfiles"
 echo "============================================"
 echo ""
 
+# Read one SSH public key from the terminal into SSH_PUBLIC_KEY, re-prompting
+# until it's valid. Private keys are rejected, and any extra pasted lines (e.g.
+# the body of a multi-line private key) are discarded so they can't leak into
+# later prompts. Pass "optional" to allow an empty answer.
+SSH_PUBKEY_REGEX='^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com) [A-Za-z0-9+/]+=*( .*)?$'
+read_ssh_public_key() {
+  while true; do
+    if ! read -rp "> " SSH_PUBLIC_KEY && [ -z "$SSH_PUBLIC_KEY" ]; then
+      echo "Error: No input received."
+      exit 1
+    fi
+    while read -r -t 0.2 _; do :; done
+    if [ -z "$SSH_PUBLIC_KEY" ]; then
+      [ "$1" = "optional" ] && return 0
+      echo "Error: No SSH key provided."
+    elif [[ "$SSH_PUBLIC_KEY" == *"PRIVATE KEY"* || "$SSH_PUBLIC_KEY" == PuTTY-User-Key-File-* ]]; then
+      echo "Error: That is a PRIVATE key - never paste it anywhere. Paste the .pub file instead (e.g. ~/.ssh/id_ed25519.pub)."
+    elif [[ "$SSH_PUBLIC_KEY" =~ $SSH_PUBKEY_REGEX ]] && ssh-keygen -l -f /dev/stdin <<< "$SSH_PUBLIC_KEY" &> /dev/null; then
+      return 0
+    else
+      echo "Error: Not a valid SSH public key (expected e.g. 'ssh-ed25519 AAAA... comment'). Try again:"
+    fi
+    SSH_PUBLIC_KEY=
+  done
+}
+
 # --- Ensure the script is NOT run as root ---
 if [ "$(id -u)" -eq 0 ]; then
   echo "Error: Do not run this script as root. Run as your normal user (sudo will be used where needed)."
@@ -252,7 +278,7 @@ fi
 echo ""
 echo "--- Optional packages ---"
 
-opt_packages=("tmux" "ffmpeg" "gh" "htop" "jq" "lazygit" "opencode" "claude-code")
+opt_packages=("tmux" "ffmpeg" "gh" "htop" "jq" "lazygit" "opencode" "claude-code" "openssh-server" "netbird")
 
 # Selection state: all deselected by default
 opt_selected=()
@@ -309,12 +335,16 @@ echo ""
 apt_pkgs=()
 install_gh=false
 install_lazygit=false
+install_openssh=false
+install_netbird=false
 
 for i in "${!opt_packages[@]}"; do
   if [ "${opt_selected[$i]}" = "1" ]; then
     case "${opt_packages[$i]}" in
       gh)          install_gh=true ;;
       lazygit)     install_lazygit=true ;;
+      openssh-server) install_openssh=true ;;
+      netbird)     install_netbird=true ;;
       opencode)    echo "Installing OpenCode..."; curl -fsSL https://opencode.ai/install | bash ;;
       claude-code) echo "Installing Claude Code..."; curl -fsSL https://claude.ai/install.sh | bash ;;
       *)           apt_pkgs+=("${opt_packages[$i]}") ;;
@@ -351,6 +381,50 @@ if $install_lazygit; then
     rm -f /tmp/lazygit /tmp/lazygit.tar.gz
   else
     echo "lazygit already installed."
+  fi
+fi
+
+if $install_openssh; then
+  echo "Setting up OpenSSH server..."
+  sudo apt-get install -y openssh-server
+  sudo systemctl enable --now ssh
+  if sudo ufw status 2>/dev/null | grep -q "Status: active"; then
+    sudo ufw allow OpenSSH
+  fi
+
+  echo "Paste an SSH public key to authorize for '$USER' (one line), or press Enter to skip:"
+  read_ssh_public_key optional
+  if [ -n "$SSH_PUBLIC_KEY" ]; then
+    mkdir -p "$HOME/.ssh"
+    touch "$HOME/.ssh/authorized_keys"
+    if grep -qxF "$SSH_PUBLIC_KEY" "$HOME/.ssh/authorized_keys"; then
+      echo "SSH public key already present."
+    else
+      echo "$SSH_PUBLIC_KEY" >> "$HOME/.ssh/authorized_keys"
+      echo "SSH public key installed."
+    fi
+    chmod 700 "$HOME/.ssh"
+    chmod 600 "$HOME/.ssh/authorized_keys"
+  fi
+fi
+
+if $install_netbird; then
+  if ! command -v netbird &> /dev/null; then
+    # The installer uses sudo itself and adds the tray UI on desktop systems
+    echo "Installing NetBird..."
+    curl -fsSL https://pkgs.netbird.io/install.sh | sh
+  else
+    echo "NetBird already installed."
+  fi
+
+  echo "Enter a NetBird setup key to connect now, or press Enter to skip (you can log in from the tray app instead):"
+  read -rsp "> " NB_SETUP_KEY
+  echo ""
+  if [ -n "$NB_SETUP_KEY" ]; then
+    read -rp "Management URL (press Enter for NetBird cloud): " NB_MANAGEMENT_URL
+    nb_args=(up --setup-key "$NB_SETUP_KEY")
+    [ -n "$NB_MANAGEMENT_URL" ] && nb_args+=(--management-url "$NB_MANAGEMENT_URL")
+    sudo netbird "${nb_args[@]}"
   fi
 fi
 

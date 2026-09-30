@@ -3,10 +3,26 @@ set -e
 
 echo "Christopher Kapic's System Configuration"
 
-if ! command -v brew &> /dev/null
+# Homebrew installs to /opt/homebrew on Apple Silicon, which isn't on the
+# default PATH, so load its shellenv explicitly after (or instead of) installing.
+load_brew_shellenv() {
+  for brew_bin in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    if [ -x "$brew_bin" ]; then
+      eval "$("$brew_bin" shellenv)"
+      return 0
+    fi
+  done
+  return 1
+}
+
+if ! command -v brew &> /dev/null && ! load_brew_shellenv
 then
   echo "homebrew could not be found - installing now..."
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  if ! load_brew_shellenv; then
+    echo "Error: homebrew was installed but brew could not be found in /opt/homebrew/bin or /usr/local/bin."
+    exit 1
+  fi
 fi
 
 if ! xcode-select -p &> /dev/null; then
@@ -282,7 +298,8 @@ fi
 echo ""
 echo "--- Optional applications (casks) ---"
 
-cask_packages=("pika" "maccy" "monitorcontrol" "bettermouse" "brave-browser" "cyberduck" "firefox" "google-chrome" "rectangle")
+# "alacritty" is built from source rather than installed as a cask
+cask_packages=("alacritty" "pika" "maccy" "monitorcontrol" "bettermouse" "brave-browser" "cyberduck" "firefox" "google-chrome" "rectangle")
 
 cask_selected=()
 for i in "${!cask_packages[@]}"; do cask_selected+=("0"); done
@@ -335,15 +352,46 @@ stty "$old_stty3"
 echo ""
 
 casks_to_install=()
+install_alacritty=false
 for i in "${!cask_packages[@]}"; do
   if [ "${cask_selected[$i]}" = "1" ]; then
-    casks_to_install+=("${cask_packages[$i]}")
+    case "${cask_packages[$i]}" in
+      alacritty) install_alacritty=true ;;
+      *)         casks_to_install+=("${cask_packages[$i]}") ;;
+    esac
   fi
 done
 
 if [ ${#casks_to_install[@]} -gt 0 ]; then
   echo "Installing casks: ${casks_to_install[*]}"
   brew install --cask "${casks_to_install[@]}"
+fi
+
+# Build Alacritty from source: Alacritty.app goes to /Applications and the
+# binary to ~/.local/bin. The source checkout in /tmp is always removed.
+if $install_alacritty; then
+  echo "Building Alacritty from source..."
+  [ -s "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
+  if ! command -v cargo &> /dev/null; then
+    echo "rust could not be found - installing now..."
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    source "$HOME/.cargo/env"
+  fi
+  # scdoc is needed by `make app` to generate the man pages
+  command -v scdoc &> /dev/null || brew install scdoc
+
+  alacritty_src=$(mktemp -d /tmp/alacritty.XXXXXX)
+  (
+    trap 'rm -rf "$alacritty_src"' EXIT
+    git clone --depth=1 https://github.com/alacritty/alacritty.git "$alacritty_src"
+    cd "$alacritty_src"
+    make app
+    rm -rf /Applications/Alacritty.app
+    cp -R target/release/osx/Alacritty.app /Applications/
+    mkdir -p "$HOME/.local/bin"
+    cp target/release/alacritty "$HOME/.local/bin/alacritty"
+  )
+  echo "Alacritty installed to /Applications/Alacritty.app and ~/.local/bin/alacritty"
 fi
 
 echo "Configuring some MacOS settings..."

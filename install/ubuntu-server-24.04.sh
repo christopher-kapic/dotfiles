@@ -18,6 +18,7 @@ set -e
 #   6. Install Neovim (latest from GitHub releases)
 #   7. Install LunaVim for the new user
 #   8. Set zsh as the default shell for the new user
+#   9. Optionally install NetBird
 #
 # Flags:
 #   --workstation    Also install CLI tools useful for SSH-based development
@@ -38,6 +39,32 @@ if [ "$(id -u)" -ne 0 ]; then
   echo "Error: This script must be run as root."
   exit 1
 fi
+
+# Read one SSH public key from the terminal into SSH_PUBLIC_KEY, re-prompting
+# until it's valid. Private keys are rejected, and any extra pasted lines (e.g.
+# the body of a multi-line private key) are discarded so they can't leak into
+# later prompts. Pass "optional" to allow an empty answer.
+SSH_PUBKEY_REGEX='^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com) [A-Za-z0-9+/]+=*( .*)?$'
+read_ssh_public_key() {
+  while true; do
+    if ! read -rp "> " SSH_PUBLIC_KEY && [ -z "$SSH_PUBLIC_KEY" ]; then
+      echo "Error: No input received."
+      exit 1
+    fi
+    while read -r -t 0.2 _; do :; done
+    if [ -z "$SSH_PUBLIC_KEY" ]; then
+      [ "$1" = "optional" ] && return 0
+      echo "Error: No SSH key provided. Key-based authentication is required."
+    elif [[ "$SSH_PUBLIC_KEY" == *"PRIVATE KEY"* || "$SSH_PUBLIC_KEY" == PuTTY-User-Key-File-* ]]; then
+      echo "Error: That is a PRIVATE key - never paste it anywhere. Paste the .pub file instead (e.g. ~/.ssh/id_ed25519.pub)."
+    elif [[ "$SSH_PUBLIC_KEY" =~ $SSH_PUBKEY_REGEX ]] && ssh-keygen -l -f /dev/stdin <<< "$SSH_PUBLIC_KEY" &> /dev/null; then
+      return 0
+    else
+      echo "Error: Not a valid SSH public key (expected e.g. 'ssh-ed25519 AAAA... comment'). Try again:"
+    fi
+    SSH_PUBLIC_KEY=
+  done
+}
 
 echo "============================================"
 echo "  Ubuntu Server 24.04 Setup"
@@ -65,13 +92,14 @@ fi
 # =============================================================================
 echo ""
 echo "--- SSH Key Setup ---"
-echo "Paste the SSH public key for '$NEW_USER' (one line, then press Enter):"
-read -rp "> " SSH_PUBLIC_KEY
-
-if [ -z "$SSH_PUBLIC_KEY" ]; then
-  echo "Error: No SSH key provided. Key-based authentication is required."
-  exit 1
+# Most servers already have openssh-server, but make sure before configuring it
+if ! dpkg -s openssh-server &> /dev/null; then
+  apt-get update -qq
+  apt-get install -y openssh-server
 fi
+
+echo "Paste the SSH public key for '$NEW_USER' (one line, then press Enter):"
+read_ssh_public_key
 
 # Create .ssh directory for the new user and install the authorized key
 USER_HOME=$(eval echo "~$NEW_USER")
@@ -218,7 +246,7 @@ echo "Zsh set as default shell for '$NEW_USER'."
 # =============================================================================
 echo ""
 echo "--- Installing dependencies ---"
-apt-get install -y git curl wget build-essential unzip stow openssh-server
+apt-get install -y git curl wget build-essential unzip stow
 
 # =============================================================================
 # Step 7: Clone dotfiles, stow packages, and set up starship
@@ -422,6 +450,35 @@ if $WORKSTATION; then
 fi
 
 # =============================================================================
+# Step 12: NetBird (optional)
+# The installer adds NetBird's apt repo and installs the netbird service.
+# =============================================================================
+echo ""
+echo "--- NetBird Setup ---"
+INSTALLED_NETBIRD=false
+if command -v netbird &> /dev/null; then
+  echo "NetBird already installed."
+else
+  read -rp "Install NetBird? [y/N] " INSTALL_NETBIRD
+  if [[ "$INSTALL_NETBIRD" =~ ^[Yy] ]]; then
+    curl -fsSL https://pkgs.netbird.io/install.sh | sh
+    INSTALLED_NETBIRD=true
+
+    echo "Enter a NetBird setup key to connect now, or press Enter to skip:"
+    read -rsp "> " NB_SETUP_KEY
+    echo ""
+    if [ -n "$NB_SETUP_KEY" ]; then
+      read -rp "Management URL (press Enter for NetBird cloud): " NB_MANAGEMENT_URL
+      NB_ARGS=(up --setup-key "$NB_SETUP_KEY")
+      [ -n "$NB_MANAGEMENT_URL" ] && NB_ARGS+=(--management-url "$NB_MANAGEMENT_URL")
+      netbird "${NB_ARGS[@]}"
+    else
+      echo "Run 'netbird up' later to connect (add --management-url <url> if self-hosted)."
+    fi
+  fi
+fi
+
+# =============================================================================
 # Done!
 # =============================================================================
 echo ""
@@ -439,6 +496,9 @@ echo "  - Starship: installed"
 echo "  - Neovim: latest version installed"
 echo "  - LunaVim: installed for '$NEW_USER'"
 echo "  - Zsh: default shell for '$NEW_USER'"
+if $INSTALLED_NETBIRD; then
+  echo "  - NetBird: installed"
+fi
 if $WORKSTATION; then
   echo "  - Workstation tools: tmux, htop, jq, gh, lazygit, opencode, claude-code"
 fi
