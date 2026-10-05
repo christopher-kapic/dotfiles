@@ -145,6 +145,7 @@ if command -v starship >/dev/null; then
     case $? in
       0) export STARSHIP_GIT_CLEAN_TEXT=$text; unset STARSHIP_GIT_DIRTY_TEXT STARSHIP_NO_GIT ;;
       2) export STARSHIP_GIT_DIRTY_TEXT=$text; unset STARSHIP_GIT_CLEAN_TEXT STARSHIP_NO_GIT ;;
+      3) ;; # in a repo but status momentarily failed: keep the last-known segment
       *) unset STARSHIP_GIT_CLEAN_TEXT STARSHIP_GIT_DIRTY_TEXT; export STARSHIP_NO_GIT=1 ;;
     esac
   }
