@@ -3,8 +3,16 @@
 # ✘deleted »renamed ~conflicted *stashed ⇡ahead ⇣behind".
 # Empty output + exit 1 when not inside a work tree. Used by the
 # [custom.git_clean] / [custom.git_dirty] Starship modules.
+# GIT_OPTIONAL_LOCKS=0 stops `git status` from refreshing/writing the index, so
+# a concurrent git operation holding .git/index.lock (a commit or rebase in
+# another pane, lazygit, an editor, a CLI agent) can't make this fail or stall.
+export GIT_OPTIONAL_LOCKS=0
+# Repo detection is kept separate from status details on purpose: rev-parse is
+# cheap and reliable, so exit 1 (below) is the ONLY "not a work tree" signal.
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 1
-porc=$(git status --porcelain --branch 2>/dev/null) || exit 1
+# In a repo, but the detailed status momentarily failed (transient git error).
+# Exit 3 tells the caller to keep the last-known segment rather than blank it.
+porc=$(git status --porcelain --branch 2>/dev/null) || exit 3
 
 branchline=$(printf '%s
 ' "$porc" | head -1)
@@ -65,7 +73,8 @@ printf '%s' "$out"
 # Signal dirtiness via exit code so the prompt can be cached: 0 = clean or
 # untracked-only (green), 2 = dirty i.e. staged/unstaged tracked changes
 # (yellow). Untracked files and stashes do not count as dirty, matching p10k's
-# VCS_UNTRACKED_BACKGROUND. (exit 1 above = not a work tree.)
+# VCS_UNTRACKED_BACKGROUND. (exit 1 above = not a work tree; exit 3 = in a repo
+# but status momentarily unavailable -- caller keeps the last-known segment.)
 if [ "${staged:-0}" -gt 0 ] || [ "${modified:-0}" -gt 0 ] ||
    [ "${deleted:-0}" -gt 0 ] || [ "${renamed:-0}" -gt 0 ] ||
    [ "${conflicted:-0}" -gt 0 ]; then
