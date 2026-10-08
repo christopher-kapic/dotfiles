@@ -12,7 +12,7 @@ command_timeout = 2000
 # [table] header, otherwise TOML nests them inside that table and Starship
 # silently ignores `format` and falls back to its default layout.
 #
-# Line 1:  (dir) > (git) >  ····  (kube|azure) < (dur time)
+# Line 1:  (dir) > (git) >  ····  (right-side pills) < (dur time)
 # Line 2:  prompt arrow
 #
 # The git segment is green when the work tree is clean (or has only untracked
@@ -23,12 +23,16 @@ command_timeout = 2000
 # $STARSHIP_GIT_DIRTY_TEXT / $STARSHIP_NO_GIT. The [env_var.*] modules below
 # just read those vars in-process (env_var never forks a shell).
 #
-# kube/azure use p10k-style "show on command": the zle hook in .zshrc detects
-# the first word of the command being typed, runs kube-context.sh/azure-sub.sh
-# at most once per change, and exports the result into $STARSHIP_KUBE_TEXT /
-# $STARSHIP_AZURE_TEXT / $STARSHIP_NO_PILL. To add a new show-on-command
-# segment, extend the case statement in .zshrc's _starship_show_on_command and
-# add a matching [env_var.*] block here.
+# Every right-side pill works the same way: a hook in .zshrc computes its text
+# (once per command, or once per typed-command-word change for show-on-command
+# pills), exports it as $STARSHIP_<NAME>_TEXT, and the matching [env_var.*]
+# module renders it only while that variable is set. Pills have no closing
+# triangle; each draws its entrance with `bg:prev_bg` (the background of
+# whatever segment precedes it -- the fill, or another pill), so any subset of
+# them joins up cleanly, and the time group's entrance in `format` does the
+# same. To add a pill, export a new variable from .zshrc, add an [env_var.*]
+# block here in that shape, and list it in `format`. Neighbouring pills should
+# have different colours, or the join between them is invisible.
 format = """
 [](fg:blue)\
 $directory\
@@ -36,9 +40,16 @@ ${env_var.git_clean}\
 ${env_var.git_dirty}\
 ${env_var.dir_sep}\
 $fill\
+${env_var.jobs}\
+${env_var.venv}\
+${env_var.pyenv}\
+${env_var.nvm}\
 ${env_var.kube}\
+${env_var.terraform}\
 ${env_var.azure}\
-${env_var.grey_sep}\
+${env_var.context}\
+${env_var.context_root}\
+[](fg:grey bg:prev_bg)\
 $cmd_duration\
 $status\
 $time\
@@ -48,13 +59,17 @@ $character"""
 
 # Colours pulled from the Alacritty theme so Starship matches the terminal.
 [palettes.p10k]
-blue    = '#82a9fe' # directory / azure background
-yellow  = '#ffcc02' # git background (dirty)
-green   = '#70bf47' # git background (clean / untracked-only)
+blue    = '#82a9fe' # directory / venv background
+bright_blue = '#2b63ff' # azure background
+yellow  = '#ffcc02' # git background (dirty) / pyenv / context text
+green   = '#70bf47' # git background (clean / untracked-only) / nvm
 grey    = '#f0f0f0' # time / duration background (light grey)
 magenta = '#bd2bac' # kubernetes background
+pink    = '#f08dde' # terraform background
+cyan    = '#88ddff' # background-jobs background
+red     = '#f88c6c' # context background when root
 light   = '#ffffff' # light text (dir / kube / azure)
-dark    = '#1c1e2b' # text on green / yellow / grey
+dark    = '#1c1e2b' # text on light pills / context background
 dots    = '#585858' # connecting dots
 
 [directory]
@@ -89,28 +104,63 @@ format = '[](fg:blue)'
 symbol = '·'
 style = 'fg:dots'
 
-# Kubernetes context (magenta pill). Shown only while typing a kube command.
-# $STARSHIP_KUBE_TEXT is populated once (not per redraw) by the .zshrc
-# show-on-command hook, which runs kube-context.sh only when the typed
-# command's first word changes. Trailing triangle connects the pill straight
-# into the grey time group.
+# --- Right-side pills -------------------------------------------------------
+# Listed in display order. See the comment above `format` for how they work.
+
+# Background jobs (cyan, icon only, like p10k's non-verbose background_jobs).
+# $STARSHIP_JOBS_TEXT holds the job count (unused here; it just needs to be
+# non-empty), refreshed once per command.
+[env_var.jobs]
+variable = 'STARSHIP_JOBS_TEXT'
+format = '[](fg:cyan bg:prev_bg)[  ](fg:dark bg:cyan)'
+
+# Python virtual environment (blue, like p10k's virtualenv segment). A generic
+# env dir name (env, venv, .venv, virtualenv) is replaced by its parent
+# directory's name, so `python3 -m venv env` in ~/ziggy shows "ziggy".
+[env_var.venv]
+variable = 'STARSHIP_VENV_TEXT'
+format = '[](fg:blue bg:prev_bg)[  $env_value ](fg:dark bg:blue)'
+
+# pyenv Python version (yellow). Shown only when the version selected by
+# $PYENV_VERSION or a .python-version file differs from the global one.
+[env_var.pyenv]
+variable = 'STARSHIP_PYENV_TEXT'
+format = '[](fg:yellow bg:prev_bg)[  $env_value ](fg:dark bg:yellow)'
+
+# nvm Node.js version (green). Shown only when it differs from `nvm alias
+# default` (e.g. after `nvm use`).
+[env_var.nvm]
+variable = 'STARSHIP_NVM_TEXT'
+format = '[](fg:green bg:prev_bg)[  $env_value ](fg:dark bg:green)'
+
+# Kubernetes context (magenta). Shown only while typing a kube command; the
+# .zshrc show-on-command hook runs kube-context.sh once per change of the
+# typed command's first word.
 [env_var.kube]
 variable = 'STARSHIP_KUBE_TEXT'
-format = '[](fg:magenta)[ ⎈ $env_value ](fg:light bg:magenta)[](fg:grey bg:magenta)'
+format = '[](fg:magenta bg:prev_bg)[ ⎈ $env_value ](fg:light bg:magenta)'
 
-# Azure subscription (blue pill). Shown only while typing an azure command.
-# $STARSHIP_AZURE_TEXT is populated the same way, via azure-sub.sh.
+# Terraform (pink). Shows the workspace whenever it is not "default", plus the
+# terraform version while typing a terraform/tf command.
+[env_var.terraform]
+variable = 'STARSHIP_TERRAFORM_TEXT'
+format = '[](fg:pink bg:prev_bg)[ 󱁢 $env_value ](fg:dark bg:pink)'
+
+# Azure subscription (bright blue). Shown only while typing an azure/IaC
+# command; populated the same way as kube, via azure-sub.sh.
 [env_var.azure]
 variable = 'STARSHIP_AZURE_TEXT'
-format = '[](fg:blue)[ 󰠅 $env_value ](fg:light bg:blue)[](fg:grey bg:blue)'
+format = '[](fg:bright_blue bg:prev_bg)[ 󰠅 $env_value ](fg:light bg:bright_blue)'
 
-# Plain grey entrance triangle for the time group -- rendered only when no
-# show-on-command pill is active (the pills provide their own grey
-# transition). $STARSHIP_NO_PILL is exported by the same .zshrc hook whenever
-# neither kube nor azure is active.
-[env_var.grey_sep]
-variable = 'STARSHIP_NO_PILL'
-format = '[](fg:grey)'
+# user@host, only over SSH (yellow on dark) or as root (on red), like p10k's
+# context segment. Set once at shell startup.
+[env_var.context]
+variable = 'STARSHIP_CONTEXT_TEXT'
+format = '[](fg:dark bg:prev_bg)[ $env_value ](fg:yellow bg:dark)'
+
+[env_var.context_root]
+variable = 'STARSHIP_CONTEXT_ROOT_TEXT'
+format = '[](fg:red bg:prev_bg)[ $env_value ](bold fg:dark bg:red)'
 
 [cmd_duration]
 min_time = 3000
