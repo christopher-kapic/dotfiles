@@ -1,0 +1,15 @@
+# Shared by shell startup; keep this compatible with bash and zsh.
+if [ -r "${CARGO_HOME:-$HOME/.cargo}/env" ]; then
+  . "${CARGO_HOME:-$HOME/.cargo}/env"
+fi
+
+if command -v sccache >/dev/null 2>&1; then
+  # An explicitly empty wrapper disables caching; preserve custom wrappers too.
+  if [ "${RUSTC_WRAPPER+x}" != x ]; then
+    export RUSTC_WRAPPER=sccache
+  fi
+  export SCCACHE_CACHE_SIZE="${SCCACHE_CACHE_SIZE:-2G}"
+fi
+
+# Keep Cargo's incremental defaults: sccache still caches eligible dependencies.
+# Do not set global RUSTFLAGS, profile overrides, or a shared target directory.

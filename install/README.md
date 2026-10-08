@@ -115,3 +115,100 @@ sudo bash ~/dotfiles/install/ubuntu-server-24.04.sh --workstation
 - The release tarball is a whole tree (`bin/nvim`, `lib/nvim` parsers, `share/nvim/runtime`), not a single binary. The script extracts it to `~/.nvim`, which `~/.config/shell/path` already puts first on PATH, and symlinks `~/.local/bin/nvim` to `~/.nvim/bin/nvim`. Anything else at `~/.local/bin/nvim` is replaced.
 - The tarball's sha256 is checked against the digest the GitHub API lists for it. The new version is extracted to a staging folder and test-run before the old install is removed.
 - If the installed version is already the latest, the script does nothing. Pass `--force` to reinstall.
+
+## Rust builds and disk space
+
+All setup scripts install `sccache` through apt (Ubuntu) or Homebrew (macOS).
+The `shell` stow package loads Rust's environment and enables `sccache` when
+available, unless `RUSTC_WRAPPER` is already set. Its local cache defaults to
+2 GiB and evicts old entries when full. No remote cache is configured: each
+machine has its own cache.
+
+For an existing machine, install the tool and restow the shell package:
+
+```bash
+# Ubuntu (sccache is in the universe repository)
+sudo apt-get install sccache
+# macOS
+brew install sccache
+
+cd ~/dotfiles
+stow --restow --target="$HOME" shell
+```
+
+Open a new terminal, then build normally and inspect cache statistics:
+
+```bash
+cargo build
+sccache --show-stats
+```
+
+[sccache](https://github.com/mozilla/sccache) reuses eligible compiler outputs;
+it doesn't reduce optimization or debug information. It cannot cache crates
+that invoke the linker (including binaries and proc macros), or incremental
+compilations. Cargo's incremental defaults remain enabled for the edit/build
+loop; non-incremental dependencies can still be cached. A warm `cargo build`
+with no changes usually does no compilation at all, so it won't produce new
+sccache hits. Cache reuse also depends on matching toolchains, flags, inputs,
+and paths; it isn't guaranteed across unrelated projects.
+
+To bypass sccache for a command, use `RUSTC_WRAPPER= cargo build`. To disable it
+for a shell or use a project-specific wrapper, export `RUSTC_WRAPPER` (empty
+or your wrapper's path) before sourcing `~/.config/shell/env`; environment
+variables override Cargo's `build.rustc-wrapper` config. Set
+`SCCACHE_CACHE_SIZE=5G` before loading the environment to change the limit.
+If the sccache server is already running, run `sccache --stop-server` before
+the next build for a new cache limit to take effect.
+
+For workloads with frequent clean builds, you can try
+`CARGO_INCREMENTAL=0 cargo build`, then compare timings with your normal
+workflow. This makes more library compilations eligible for caching and avoids
+incremental artifacts, but can slow repeated edits when cache entries miss.
+It is deliberately not a global default.
+
+### Smaller target directories
+
+sccache is an additional bounded cache; it does not cap or remove `target/`
+directories. For projects where you don't need to inspect local variables in a
+debugger, try this in the project's `.cargo/config.toml` (merge with existing
+tables rather than replacing the file):
+
+```toml
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.test]
+debug = "line-tables-only"
+```
+
+This reduces debug information while retaining file/line information for
+backtraces; debugger variable inspection is lost. It keeps optimization and
+debug assertions at their existing settings. Use `debug = "full"` when you
+need full debugging. See [Cargo profiles](https://doc.rust-lang.org/cargo/reference/profiles.html#debug).
+Changing these settings causes a rebuild, and old artifacts may remain until
+cleaned.
+
+For an inactive project, preview a cleanup with `cargo clean --dry-run`, then
+run `cargo clean` when you're ready to discard its build outputs. The next
+build can reuse eligible sccache entries, but linking and cache misses still
+take time. Nothing in these dotfiles automatically deletes build artifacts.
+
+### Faster linking on Linux
+
+[Rust 1.90+ already uses LLD by default](https://blog.rust-lang.org/2025/09/18/Rust-1.90.0/)
+on `x86_64-unknown-linux-gnu`.
+[mold](https://github.com/rui314/mold) is another fast Linux linker worth
+benchmarking on large projects or other Linux architectures. On Ubuntu 24.04
+and 26.04, install it with `sudo apt-get install mold`. Their GCC versions
+support `-fuse-ld=mold`; add the following to your machine's existing
+`~/.cargo/config.toml` if you want it enabled for native x86-64 GNU/Linux:
+
+```toml
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+```
+
+For native ARM64 GNU/Linux, use `[target.aarch64-unknown-linux-gnu]` instead.
+Keep cross-compilation linker settings specific to the project/toolchain.
+The setup scripts do not force a linker on other machines; macOS keeps its
+system linker. These dotfiles do not replace existing Cargo configuration.

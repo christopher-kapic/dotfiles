@@ -263,7 +263,7 @@ fi
 # =============================================================================
 echo ""
 echo "--- Installing dependencies ---"
-apt-get install -y git curl wget build-essential unzip stow
+apt-get install -y git curl wget build-essential unzip stow sccache
 
 # =============================================================================
 # Step 7: Clone dotfiles, stow packages, and set up starship

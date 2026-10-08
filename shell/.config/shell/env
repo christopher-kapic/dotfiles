@@ -1,2 +1,7 @@
 export XDG_CONFIG_HOME=$HOME/.config
 export EDITOR=$HOME/.local/bin/lvim
+
+# Rust tools and compiler caching (optional on machines without Rust/sccache).
+if [ -r "$HOME/.config/shell/rust" ]; then
+  . "$HOME/.config/shell/rust"
+fi

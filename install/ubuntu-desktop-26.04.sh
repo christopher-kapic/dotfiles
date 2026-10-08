@@ -105,7 +105,7 @@ esac
 # =============================================================================
 echo "--- Installing base packages ---"
 sudo apt-get update -qq
-sudo apt-get install -y git curl wget build-essential unzip stow zsh fontconfig
+sudo apt-get install -y git curl wget build-essential unzip stow zsh fontconfig sccache
 
 # =============================================================================
 # Step 2: Install starship prompt (packaged in the Ubuntu archive since 25.04)

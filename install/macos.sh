@@ -178,6 +178,11 @@ then
 fi
 [ -s "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
 
+if ! command -v sccache &> /dev/null; then
+  echo "Installing Rust compiler cache..."
+  brew install sccache
+fi
+
 # Neovim 0.11+ required for LunaVim
 neovim_ok=
 if command -v nvim &> /dev/null; then

@@ -104,7 +104,7 @@ USER_HOME=$(getent passwd "$NEW_USER" | cut -d: -f6)
 echo ""
 echo "--- Installing base packages ---"
 apt-get update -qq
-apt-get install -y openssh-server ufw fail2ban python3-systemd zsh git curl wget build-essential unzip stow
+apt-get install -y openssh-server ufw fail2ban python3-systemd zsh git curl wget build-essential unzip stow sccache
 
 # Starship prompt (packaged in the Ubuntu archive since 25.04)
 apt-get install -y starship

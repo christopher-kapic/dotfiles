@@ -52,7 +52,7 @@ fi
 # =============================================================================
 echo "--- Installing base packages ---"
 sudo apt-get update -qq
-sudo apt-get install -y git curl wget build-essential unzip stow zsh
+sudo apt-get install -y git curl wget build-essential unzip stow zsh sccache
 
 # =============================================================================
 # Step 2: Clone dotfiles
