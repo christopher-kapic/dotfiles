@@ -43,7 +43,7 @@ $fill\
 ${env_var.jobs}\
 ${env_var.venv}\
 ${env_var.pyenv}\
-${env_var.nvm}\
+${env_var.node}\
 ${env_var.kube}\
 ${env_var.terraform}\
 ${env_var.azure}\
@@ -62,7 +62,7 @@ $character"""
 blue    = '#82a9fe' # directory / venv background
 bright_blue = '#2b63ff' # azure background
 yellow  = '#ffcc02' # git background (dirty) / pyenv / context text
-green   = '#70bf47' # git background (clean / untracked-only) / nvm
+green   = '#70bf47' # git background (clean / untracked-only) / node
 grey    = '#f0f0f0' # time / duration background (light grey)
 magenta = '#bd2bac' # kubernetes background
 pink    = '#f08dde' # terraform background
@@ -127,10 +127,10 @@ format = '[](fg:blue bg:prev_bg)[  $env_value ](fg:dark bg:blue)'
 variable = 'STARSHIP_PYENV_TEXT'
 format = '[](fg:yellow bg:prev_bg)[  $env_value ](fg:dark bg:yellow)'
 
-# nvm Node.js version (green). Shown only when it differs from `nvm alias
-# default` (e.g. after `nvm use`).
-[env_var.nvm]
-variable = 'STARSHIP_NVM_TEXT'
+# Node.js version from fnm (green). Shown only when it differs from `fnm
+# default` (e.g. after `fnm use`, or in a directory with an .nvmrc).
+[env_var.node]
+variable = 'STARSHIP_NODE_TEXT'
 format = '[](fg:green bg:prev_bg)[  $env_value ](fg:dark bg:green)'
 
 # Kubernetes context (magenta). Shown only while typing a kube command; the

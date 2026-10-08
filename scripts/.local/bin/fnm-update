@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# fnm-update - install or update fnm from the latest GitHub release
+#
+# The release zip holds a single static binary, so it is installed straight to
+# ~/.local/bin/fnm (on PATH via ~/.config/shell/path). Linux only: on macOS,
+# `brew install fnm` also installs the zsh completions.
+
+INSTALL="$HOME/.local/bin/fnm"
+REPO="Schniz/fnm"
+
+usage() {
+  cat <<'EOF'
+Usage: fnm-update [-f|--force]
+
+Install fnm from the latest GitHub release to ~/.local/bin/fnm. Does nothing
+if the installed version is already the latest (or newer).
+
+Options:
+  -f, --force    Reinstall even if already up to date
+  -h, --help     Show this help
+EOF
+}
+
+FORCE=false
+for arg in "$@"; do
+  case "$arg" in
+    -f|--force) FORCE=true ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "Unknown argument: $arg" >&2; usage >&2; exit 1 ;;
+  esac
+done
+
+if [ "$(uname -s)" != Linux ]; then
+  echo "Error: fnm-update is for Linux; on macOS use 'brew install fnm'." >&2
+  exit 1
+fi
+case "$(uname -m)" in
+  x86_64)        asset=fnm-linux.zip ;;
+  aarch64|arm64) asset=fnm-arm64.zip ;;
+  armv7l)        asset=fnm-arm32.zip ;;
+  *) echo "Error: Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+
+if ! command -v unzip &> /dev/null; then
+  echo "Error: unzip is required (sudo apt-get install unzip)." >&2
+  exit 1
+fi
+
+sha256() {
+  sha256sum "$1" | cut -d' ' -f1
+}
+
+# "fnm 1.39.0" -> "v1.39.0"
+fnm_version() {
+  local v
+  v=$("$1" --version 2>/dev/null | awk '{print $2}') && [ -n "$v" ] && echo "v$v"
+}
+
+# --- Find the latest release ---
+# The API also gives the asset's sha256. If it's unavailable (e.g. the 60
+# requests/hour unauthenticated rate limit), fall back to the /releases/latest
+# redirect for the tag and skip checksum verification.
+release_json=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null || true)
+latest=$(printf '%s\n' "$release_json" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)
+digest=$(printf '%s\n' "$release_json" | grep -A60 "\"name\": \"$asset\"" | sed -n 's/.*"digest": "sha256:\([0-9a-f]*\)".*/\1/p' | head -1 || true)
+if [ -z "$latest" ]; then
+  latest=$(curl -fsSI "https://github.com/$REPO/releases/latest" | sed -n 's|^[Ll]ocation: .*/tag/\([^[:space:]]*\).*|\1|p')
+fi
+if [ -z "$latest" ]; then
+  echo "Error: Could not determine the latest fnm release." >&2
+  exit 1
+fi
+
+# --- Compare with the installed version ---
+installed=
+if [ -x "$INSTALL" ]; then
+  installed=$(fnm_version "$INSTALL" || true)
+fi
+
+if [ -n "$installed" ] && ! $FORCE; then
+  newest=$(printf '%s\n%s\n' "${installed#v}" "${latest#v}" | sort -V | tail -1)
+  if [ "$newest" = "${installed#v}" ]; then
+    echo "fnm $installed is up to date (latest release: $latest)."
+    exit 0
+  fi
+fi
+
+echo "Installing fnm $latest${installed:+ (replacing $installed)}..."
+
+# --- Download, verify, and extract into a temp directory ---
+tmp=$(mktemp -d)
+# Deletes the downloaded zip and extracted files on any exit, success or error
+trap 'rm -rf "$tmp"' EXIT
+
+curl -fL --progress-bar -o "$tmp/$asset" "https://github.com/$REPO/releases/download/$latest/$asset"
+
+if [ -n "$digest" ]; then
+  actual=$(sha256 "$tmp/$asset")
+  if [ "$actual" != "$digest" ]; then
+    echo "Error: Checksum mismatch for $asset (expected $digest, got $actual)." >&2
+    exit 1
+  fi
+  echo "Checksum verified."
+else
+  echo "Warning: Could not get a checksum from the GitHub API; skipping verification." >&2
+fi
+
+unzip -q "$tmp/$asset" -d "$tmp/out"
+chmod +x "$tmp/out/fnm"
+
+if ! new_version=$(fnm_version "$tmp/out/fnm"); then
+  echo "Error: The downloaded fnm doesn't run; leaving the current install alone." >&2
+  exit 1
+fi
+
+# --- Move the new binary into place ---
+# Stage next to the target so the final swap is a same-filesystem rename
+mkdir -p "$(dirname "$INSTALL")"
+cp "$tmp/out/fnm" "$INSTALL.new"
+mv -f "$INSTALL.new" "$INSTALL"
+
+echo "fnm $new_version installed to $INSTALL."

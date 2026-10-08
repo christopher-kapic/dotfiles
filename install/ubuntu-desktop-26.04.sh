@@ -201,21 +201,18 @@ else
 fi
 
 # =============================================================================
-# Step 8: Install nvm and Node.js
+# Step 8: Install fnm and Node.js
 # =============================================================================
-export NVM_DIR="$HOME/.nvm"
-if ! [ -s "$NVM_DIR/nvm.sh" ]; then
-  echo "Installing nvm..."
-  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
-fi
-\. "$NVM_DIR/nvm.sh"
+# fnm-update installs the latest release binary to ~/.local/bin/fnm; re-run it
+# later to upgrade.
+"$HOME/dotfiles/scripts/.local/bin/fnm-update"
+export PATH="$HOME/.local/bin:$PATH"
+eval "$(fnm env --shell bash)"
 
-if ! command -v node &> /dev/null; then
-  echo "Installing Node.js v25..."
-  nvm install 25
-else
-  echo "Node.js already installed: $(node --version)"
-fi
+# fnm install is a no-op (with a warning) if the version is already installed
+fnm install 25
+fnm default 25
+echo "Node.js installed: $(node --version)"
 
 # =============================================================================
 # Step 9: Install Rust
@@ -435,6 +432,6 @@ echo "  - Starship: installed via apt"
 echo "  - Zsh: default shell (log out and back in if just changed)"
 echo "  - Neovim: latest release in ~/.nvim (run nvim-update to upgrade)"
 echo "  - LunaVim: installed"
-echo "  - Node.js: installed via nvm"
+echo "  - Node.js: installed via fnm"
 echo "  - Rust: installed via rustup"
 echo "  - Fonts: MesloLGS NF installed"

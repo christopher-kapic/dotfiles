@@ -73,6 +73,12 @@ source $HOME/.config/shell/path
 source $HOME/.config/shell/alias
 source $HOME/.config/shell/env
 
+# fnm (Node version manager): ~/.local/bin/fnm on Linux (fnm-update), Homebrew
+# on macOS. --use-on-cd switches node when entering a directory with .nvmrc /
+# .node-version.
+if (( $+commands[fnm] )); then
+  eval "$(fnm env --use-on-cd --shell zsh)"
+fi
 
 # Starship prompt. Must be initialized AFTER the vi-mode `zle-keymap-select`
 # widget defined above so Starship wraps it (keeps the cursor-shape switching
@@ -211,25 +217,21 @@ if command -v starship >/dev/null; then
   }
   add-zsh-hook precmd _starship_pyenv
 
-  # --- nvm version (once per command) ---------------------------------------
-  # Shown only when the active node differs from `nvm alias default`, like
-  # p10k. Resolving the default runs nvm, so it is redone only when the active
-  # version or the default alias file changes.
-  typeset -g _starship_nvm_key= _starship_nvm_default=
-  _starship_nvm() {
+  # --- Node version via fnm (once per command) ------------------------------
+  # Shown only when the active node differs from `fnm default`, like p10k's
+  # nvm segment. Both are symlinks into $FNM_DIR/node-versions, so resolving
+  # them in pure zsh is enough (no fnm call).
+  _starship_node() {
     local cur= def=
-    if [[ -n $NVM_BIN ]] && (( $+functions[nvm] )); then
-      cur=${NVM_BIN:h:t}             # ~/.nvm/versions/node/v20.11.0/bin -> v20.11.0
-      [[ -r ${NVM_DIR:-$HOME/.nvm}/alias/default ]] && read -r def < ${NVM_DIR:-$HOME/.nvm}/alias/default
-      if [[ $NVM_BIN:$def != $_starship_nvm_key ]]; then
-        _starship_nvm_key=$NVM_BIN:$def
-        _starship_nvm_default=$(nvm version default 2>/dev/null)
-      fi
-      [[ $cur == $_starship_nvm_default ]] && cur=
+    if [[ -n $FNM_MULTISHELL_PATH && -n $FNM_DIR ]]; then
+      cur=${FNM_MULTISHELL_PATH:A}   # .../node-versions/v25.9.0/installation
+      def=$FNM_DIR/aliases/default
+      [[ -e $def ]] && def=${def:A}
+      if [[ $cur == $def ]]; then cur=; else cur=${cur:h:t}; fi
     fi
-    _starship_pill NVM "${cur#v}"
+    _starship_pill NODE "${cur#v}"
   }
-  add-zsh-hook precmd _starship_nvm
+  add-zsh-hook precmd _starship_node
 
   # --- Terraform (workspace once per command + version on command) ----------
   # The workspace is shown whenever it is not "default" ($TF_WORKSPACE, else

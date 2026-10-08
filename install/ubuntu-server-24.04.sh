@@ -361,23 +361,19 @@ if [ -z "$neovim_ok" ]; then
 fi
 
 # =============================================================================
-# Step 9: Install nvm, Node.js, and Rust for the new user
+# Step 9: Install fnm, Node.js, and Rust for the new user
 # These are prerequisites for LunaVim. We run them as the new user so
 # they're installed in the user's home directory, not system-wide.
 # =============================================================================
 echo ""
-echo "--- Installing nvm, Node.js, and Rust for '$NEW_USER' ---"
+echo "--- Installing fnm, Node.js, and Rust for '$NEW_USER' ---"
 
-# Install nvm if not already present for this user
-if [ -s "$USER_HOME/.nvm/nvm.sh" ]; then
-  echo "nvm already installed for '$NEW_USER'."
-else
-  su - "$NEW_USER" -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash'
-fi
+# fnm-update installs the latest release binary to ~/.local/bin/fnm (a no-op
+# if already up to date); re-run it later to upgrade.
+su - "$NEW_USER" -c '"$HOME/dotfiles/scripts/.local/bin/fnm-update"'
 
-# Install Node.js 25 if not already present. nvm install is a no-op if the
-# requested version is already installed.
-su - "$NEW_USER" -c 'export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" && nvm install 25'
+# fnm install is a no-op (with a warning) if the version is already installed
+su - "$NEW_USER" -c 'export PATH="$HOME/.local/bin:$PATH" && eval "$(fnm env --shell bash)" && fnm install 25 && fnm default 25'
 
 # Install Rust toolchain as the new user (non-interactive via -y flag)
 if [ -x "$USER_HOME/.cargo/bin/rustc" ]; then
@@ -408,7 +404,7 @@ else
     echo "The old ~/.local/share/lunarvim directory is left on disk; remove it once you're happy."
     LUNAVIM_ARGS="--force"
   fi
-  su - "$NEW_USER" -c "export NVM_DIR=\"\$HOME/.nvm\"; [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\"; export PATH=\"\$HOME/.cargo/bin:\$PATH\"; curl -sL '$LUNAVIM_INSTALLER_URL' | bash -s -- $LUNAVIM_ARGS"
+  su - "$NEW_USER" -c "export PATH=\"\$HOME/.local/bin:\$PATH\"; eval \"\$(fnm env --shell bash)\"; export PATH=\"\$HOME/.cargo/bin:\$PATH\"; curl -sL '$LUNAVIM_INSTALLER_URL' | bash -s -- $LUNAVIM_ARGS"
   echo "LunaVim installed for '$NEW_USER'."
 fi
 

@@ -154,21 +154,16 @@ fi
 mkdir -p "$HOME/Library/Fonts"
 cp "$HOME/dotfiles/fonts/.config/fonts/"* "$HOME/Library/Fonts" 2>/dev/null || true
 
-# Install nvm. nvm is a shell function, so `command -v nvm` never finds it in
-# this script; check for its install directory instead.
-export NVM_DIR="$HOME/.nvm"
-if ! [ -s "$NVM_DIR/nvm.sh" ]
+if ! command -v fnm &> /dev/null
 then
-  echo "nvm could not be found - installing now"
-  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
+  echo "fnm could not be found - installing now"
+  brew install fnm
 fi
-\. "$NVM_DIR/nvm.sh"  # This loads nvm
+eval "$(fnm env --shell bash)"
 
-if ! command -v node &> /dev/null
-then
-  echo "node could not be found - installing v25 now"
-  nvm install 25
-fi
+# fnm install is a no-op (with a warning) if the version is already installed
+fnm install 25
+fnm default 25
 
 if ! command -v gsed &> /dev/null
 then

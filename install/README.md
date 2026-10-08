@@ -6,7 +6,7 @@ Installation scripts for bootstrapping new machines with Christopher Kapic's dot
 
 ### macOS
 
-Full macOS development environment setup: Homebrew, stow, dotfiles, nvm, Node.js, Rust, Neovim, LunaVim, and macOS system preferences (dock, Finder, mouse).
+Full macOS development environment setup: Homebrew, stow, dotfiles, fnm, Node.js, Rust, Neovim, LunaVim, and macOS system preferences (dock, Finder, mouse).
 
 The optional applications menu includes `alacritty`, which is built from source (`make app` in a temporary clone under `/tmp`, removed afterwards). `Alacritty.app` is copied to `/Applications` and the `alacritty` binary to `~/.local/bin/alacritty`.
 
@@ -62,7 +62,7 @@ sudo bash ~/dotfiles/install/ubuntu-server-26.04.sh [--workstation]
 
 ### Ubuntu Desktop 24.04
 
-Idempotent desktop setup script. Installs dev tools (stow, nvm, Node.js, Rust, Neovim, LunaVim), stows dotfiles with an interactive picker, installs fonts, and sets zsh as the default shell. Run as your normal user (not root).
+Idempotent desktop setup script. Installs dev tools (stow, fnm, Node.js, Rust, Neovim, LunaVim), stows dotfiles with an interactive picker, installs fonts, and sets zsh as the default shell. Run as your normal user (not root).
 
 The optional packages menu includes `openssh-server` (enables the SSH service and optionally authorizes a public key) and `netbird` (optionally connects with a setup key).
 
@@ -82,7 +82,7 @@ Interactive server hardening and setup script. Creates a new user, configures SS
 
 The SSH key prompt only accepts a valid public key; pasting a private key is rejected.
 
-The script is idempotent: re-run it to add additional users. System-level setup (UFW, fail2ban, Neovim) is skipped on subsequent runs, SSH hardening is re-applied (it always produces the same config), and only per-user setup (dotfiles, nvm/Node, Rust, LunaVim) runs for the new user. If the user already has an authorized key, pasting another one is optional.
+The script is idempotent: re-run it to add additional users. System-level setup (UFW, fail2ban, Neovim) is skipped on subsequent runs, SSH hardening is re-applied (it always produces the same config), and only per-user setup (dotfiles, fnm/Node, Rust, LunaVim) runs for the new user. If the user already has an authorized key, pasting another one is optional.
 
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/christopher-kapic/dotfiles/master/install/ubuntu-server-24.04.sh)
