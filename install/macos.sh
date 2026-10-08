@@ -154,15 +154,15 @@ fi
 mkdir -p "$HOME/Library/Fonts"
 cp "$HOME/dotfiles/fonts/.config/fonts/"* "$HOME/Library/Fonts" 2>/dev/null || true
 
-# Install nvm
-if ! command -v nvm &> /dev/null
+# Install nvm. nvm is a shell function, so `command -v nvm` never finds it in
+# this script; check for its install directory instead.
+export NVM_DIR="$HOME/.nvm"
+if ! [ -s "$NVM_DIR/nvm.sh" ]
 then
   echo "nvm could not be found - installing now"
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
-  export NVM_DIR="$HOME/.nvm"
-  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-  [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 fi
+\. "$NVM_DIR/nvm.sh"  # This loads nvm
 
 if ! command -v node &> /dev/null
 then
@@ -176,12 +176,12 @@ then
   brew install gsed
 fi
 
-if ! command -v rustc &> /dev/null
+if ! [ -x "$HOME/.cargo/bin/rustc" ] && ! command -v rustc &> /dev/null
 then
   echo "rust could not be found - installing now..."
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-  source "$HOME/.cargo/env"
 fi
+[ -s "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
 
 # Neovim 0.11+ required for LunaVim
 neovim_ok=
@@ -281,7 +281,13 @@ brew_pkgs=()
 for i in "${!opt_packages[@]}"; do
   if [ "${opt_selected[$i]}" = "1" ]; then
     case "${opt_packages[$i]}" in
-      claude-code) echo "Installing Claude Code..."; curl -fsSL https://claude.ai/install.sh | bash ;;
+      claude-code)
+        if [ -x "$HOME/.local/bin/claude" ] || command -v claude &> /dev/null; then
+          echo "Claude Code already installed."
+        else
+          echo "Installing Claude Code..."; curl -fsSL https://claude.ai/install.sh | bash
+        fi
+        ;;
       *)           brew_pkgs+=("${opt_packages[$i]}") ;;
     esac
   fi
@@ -414,7 +420,7 @@ defaults write com.apple.dock "expose-group-apps" -bool "true"
 defaults write com.apple.dock "show-recents" -bool "false"
 defaults write com.apple.dock "tilesize" -int "28"
 
-killall Dock
+killall Dock || true
 
 echo "Configuring mouse settings"
 # echo "Disable mouse acceleration"
@@ -435,4 +441,4 @@ defaults write com.apple.finder "FXPreferredViewStyle" -string "Nlsv"
 defaults write NSGlobalDomain "AppleShowAllExtensions" -bool "true"
 defaults write com.apple.finder "_FXSortFoldersFirst" -bool "true"
 defaults write NSGlobalDomain "NSToolbarTitleViewRolloverDelay" -float "0"
-killall Finder
+killall Finder || true

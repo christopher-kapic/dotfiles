@@ -1,0 +1,159 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# nvim-update - install or update Neovim from the latest GitHub release
+#
+# The release tarball is a whole tree (bin/nvim plus lib/nvim parsers and
+# share/nvim/runtime), not a single binary, so it is extracted as a unit into
+# ~/.nvim (already first on PATH via ~/.config/shell/path) and ~/.local/bin/nvim
+# is symlinked to ~/.nvim/bin/nvim. nvim finds its runtime relative to the
+# resolved binary, so the symlink works. ~/.local/share/nvim is not used because
+# that is Neovim's own data directory (plugins, state).
+
+INSTALL_DIR="$HOME/.nvim"
+LINK="$HOME/.local/bin/nvim"
+REPO="neovim/neovim"
+
+usage() {
+  cat <<'EOF'
+Usage: nvim-update [-f|--force]
+
+Install Neovim from the latest GitHub release into ~/.nvim and symlink
+~/.local/bin/nvim to it. Does nothing if the installed version is already
+the latest (or newer).
+
+Options:
+  -f, --force    Reinstall even if already up to date
+  -h, --help     Show this help
+EOF
+}
+
+FORCE=false
+for arg in "$@"; do
+  case "$arg" in
+    -f|--force) FORCE=true ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "Unknown argument: $arg" >&2; usage >&2; exit 1 ;;
+  esac
+done
+
+case "$(uname -s)" in
+  Linux)  os=linux ;;
+  Darwin) os=macos ;;
+  *) echo "Error: Unsupported OS: $(uname -s)" >&2; exit 1 ;;
+esac
+case "$(uname -m)" in
+  x86_64)        arch=x86_64 ;;
+  aarch64|arm64) arch=arm64 ;;
+  *) echo "Error: Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+asset="nvim-${os}-${arch}.tar.gz"
+
+sha256() {
+  if command -v sha256sum &> /dev/null; then
+    sha256sum "$1" | cut -d' ' -f1
+  else
+    shasum -a 256 "$1" | cut -d' ' -f1
+  fi
+}
+
+# "NVIM v0.12.5" -> "v0.12.5"
+nvim_version() {
+  "$1" --version 2>/dev/null | head -1 | awk '{print $2}'
+}
+
+# --- Find the latest release ---
+# The API also gives the asset's sha256. If it's unavailable (e.g. the 60
+# requests/hour unauthenticated rate limit), fall back to the /releases/latest
+# redirect for the tag and skip checksum verification.
+release_json=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null || true)
+latest=$(printf '%s\n' "$release_json" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)
+digest=$(printf '%s\n' "$release_json" | grep -A60 "\"name\": \"$asset\"" | sed -n 's/.*"digest": "sha256:\([0-9a-f]*\)".*/\1/p' | head -1 || true)
+if [ -z "$latest" ]; then
+  latest=$(curl -fsSI "https://github.com/$REPO/releases/latest" | sed -n 's|^[Ll]ocation: .*/tag/\([^[:space:]]*\).*|\1|p')
+fi
+if [ -z "$latest" ]; then
+  echo "Error: Could not determine the latest Neovim release." >&2
+  exit 1
+fi
+
+# --- Compare with the installed version ---
+installed=
+if [ -x "$INSTALL_DIR/bin/nvim" ]; then
+  installed=$(nvim_version "$INSTALL_DIR/bin/nvim")
+fi
+
+if [ -n "$installed" ] && ! $FORCE; then
+  newest=$(printf '%s\n%s\n' "${installed#v}" "${latest#v}" | sort -V | tail -1)
+  if [ "$newest" = "${installed#v}" ]; then
+    echo "Neovim $installed is up to date (latest release: $latest)."
+    if [ "$(readlink "$LINK" 2>/dev/null)" != "$INSTALL_DIR/bin/nvim" ]; then
+      mkdir -p "$(dirname "$LINK")"
+      ln -sfn "$INSTALL_DIR/bin/nvim" "$LINK"
+      echo "Linked $LINK -> $INSTALL_DIR/bin/nvim"
+    fi
+    exit 0
+  fi
+fi
+
+# Refuse to replace ~/.nvim unless it is an earlier Neovim install
+if [ -e "$INSTALL_DIR" ] && ! [ -x "$INSTALL_DIR/bin/nvim" ]; then
+  echo "Error: $INSTALL_DIR exists but doesn't look like a Neovim install (no bin/nvim)." >&2
+  echo "Move it out of the way and re-run." >&2
+  exit 1
+fi
+
+echo "Installing Neovim $latest${installed:+ (replacing $installed)}..."
+
+# --- Download, verify, and extract into a staging directory ---
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+curl -fL --progress-bar -o "$tmp/$asset" "https://github.com/$REPO/releases/download/$latest/$asset"
+
+if [ -n "$digest" ]; then
+  actual=$(sha256 "$tmp/$asset")
+  if [ "$actual" != "$digest" ]; then
+    echo "Error: Checksum mismatch for $asset (expected $digest, got $actual)." >&2
+    exit 1
+  fi
+  echo "Checksum verified."
+else
+  echo "Warning: Could not get a checksum from the GitHub API; skipping verification." >&2
+fi
+
+# Stage next to the install dir so the final swap is a same-filesystem rename
+staging="$INSTALL_DIR.new"
+rm -rf "$staging"
+mkdir -p "$staging"
+tar -xzf "$tmp/$asset" -C "$staging" --strip-components=1
+
+if ! new_version=$(nvim_version "$staging/bin/nvim") || [ -z "$new_version" ]; then
+  rm -rf "$staging"
+  echo "Error: The downloaded Neovim doesn't run; leaving the current install alone." >&2
+  exit 1
+fi
+
+# --- Swap the new tree into place ---
+rm -rf "$INSTALL_DIR"
+mv "$staging" "$INSTALL_DIR"
+
+# Replace whatever is at ~/.local/bin/nvim (an old copied binary, AppImage, or
+# stale symlink) with a symlink to the new install
+mkdir -p "$(dirname "$LINK")"
+if [ -e "$LINK" ] || [ -L "$LINK" ]; then
+  if [ "$(readlink "$LINK" 2>/dev/null)" != "$INSTALL_DIR/bin/nvim" ]; then
+    echo "Replacing existing $LINK"
+  fi
+  rm -f "$LINK"
+fi
+ln -s "$INSTALL_DIR/bin/nvim" "$LINK"
+
+echo "Neovim $new_version installed to $INSTALL_DIR (linked from $LINK)."
+
+# Warn if another nvim (e.g. apt's /usr/bin/nvim) comes first on PATH
+first=$(command -v nvim 2>/dev/null || true)
+if [ -n "$first" ] && [ "$first" != "$INSTALL_DIR/bin/nvim" ] && [ "$first" != "$LINK" ]; then
+  echo "Note: '$first' ($(nvim_version "$first")) comes first on your PATH." >&2
+  echo "      Put $INSTALL_DIR/bin ahead of it (as ~/.config/shell/path does) to use $new_version." >&2
+fi

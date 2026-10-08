@@ -2,15 +2,18 @@
 set -e
 
 # =============================================================================
-# Ubuntu Desktop 24.04 Setup Script
+# Ubuntu Desktop 26.04 Setup Script
 # Christopher Kapic's dotfiles
 #
 # This script is idempotent and can be safely re-run.
 # Run as your normal user (uses sudo for apt operations).
+#
+# The optional SSH/NetBird/no-sleep items turn an (old) laptop into a headless
+# box you can SSH into over NetBird to run claude/codex remotely.
 # =============================================================================
 
 echo "============================================"
-echo "  Ubuntu Desktop 24.04 Setup"
+echo "  Ubuntu Desktop 26.04 Setup"
 echo "  Christopher Kapic's dotfiles"
 echo "============================================"
 echo ""
@@ -41,21 +44,77 @@ read_ssh_public_key() {
   done
 }
 
+# Interactive multi-select menu. Uses bash `read` rather than `stty raw` + `dd`
+# (26.04 ships the Rust coreutils), and a Ctrl-C can't leave the terminal raw.
+# Usage: multiselect RESULT_ARRAY DEFAULT TITLE ITEM...
+# DEFAULT is 1 (all selected) or 0 (none selected).
+multiselect() {
+  local -n ms_result=$1
+  local default=$2 title=$3
+  shift 3
+  local items=("$@") sel=() cursor=0 total=$# key rest i pointer check redraw=false
+  for i in "${!items[@]}"; do sel+=("$default"); done
+
+  while true; do
+    $redraw && printf "\033[%dA" "$((total + 1))"
+    redraw=true
+    printf "%s (↑/k up, ↓/j down, space toggle, enter confirm):\n" "$title"
+    for i in "${!items[@]}"; do
+      if [ "$i" -eq "$cursor" ]; then pointer=">"; else pointer=" "; fi
+      if [ "${sel[$i]}" = "1" ]; then check="[x]"; else check="[ ]"; fi
+      printf " %s %s %s\033[K\n" "$pointer" "$check" "${items[$i]}"
+    done
+
+    IFS= read -rsn1 key
+    case "$key" in
+      $'\x1b')
+        IFS= read -rsn2 -t 0.1 rest || true
+        case "$rest" in
+          "[A") if ((cursor > 0)); then cursor=$((cursor - 1)); fi ;;
+          "[B") if ((cursor < total - 1)); then cursor=$((cursor + 1)); fi ;;
+        esac
+        ;;
+      k) if ((cursor > 0)); then cursor=$((cursor - 1)); fi ;;
+      j) if ((cursor < total - 1)); then cursor=$((cursor + 1)); fi ;;
+      " ") sel[cursor]=$((1 - sel[cursor])) ;;
+      "") break ;;  # Enter
+    esac
+  done
+  echo ""
+
+  ms_result=()
+  for i in "${!items[@]}"; do
+    if [ "${sel[$i]}" = "1" ]; then ms_result+=("${items[$i]}"); fi
+  done
+}
+
 # --- Ensure the script is NOT run as root ---
 if [ "$(id -u)" -eq 0 ]; then
   echo "Error: Do not run this script as root. Run as your normal user (sudo will be used where needed)."
   exit 1
 fi
 
+case "$(uname -m)" in
+  x86_64)        ARCH=x86_64 ;;
+  aarch64|arm64) ARCH=arm64 ;;
+  *) echo "Error: Unsupported architecture: $(uname -m)"; exit 1 ;;
+esac
+
 # =============================================================================
 # Step 1: Install base packages
 # =============================================================================
 echo "--- Installing base packages ---"
 sudo apt-get update -qq
-sudo apt-get install -y git curl wget build-essential unzip stow zsh
+sudo apt-get install -y git curl wget build-essential unzip stow zsh fontconfig
 
 # =============================================================================
-# Step 2: Clone dotfiles
+# Step 2: Install starship prompt (packaged in the Ubuntu archive since 25.04)
+# =============================================================================
+echo "--- Installing starship ---"
+sudo apt-get install -y starship
+
+# =============================================================================
+# Step 3: Clone dotfiles
 # =============================================================================
 if ! [ -d "$HOME/dotfiles" ]; then
   echo "Cloning dotfiles..."
@@ -67,7 +126,7 @@ fi
 cd "$HOME/dotfiles"
 
 # =============================================================================
-# Step 3: Interactive stow package picker
+# Step 4: Interactive stow package picker
 # =============================================================================
 skip_dirs=(".git" "templates" "fonts" "bettermouse" "install")
 
@@ -81,80 +140,32 @@ for d in */; do
   $skip || packages+=("$d")
 done
 
-# Selection state: all selected by default
-selected=()
-for i in "${!packages[@]}"; do selected+=("1"); done
-cursor=0
-total=${#packages[@]}
-
-draw_menu() {
-  if [ "$1" = "redraw" ]; then
-    printf "\033[%dA" "$((total + 1))"
-  fi
-  printf "Select packages to stow (↑/k up, ↓/j down, space toggle, enter confirm):\r\n"
-  for i in "${!packages[@]}"; do
-    if [ "$i" -eq "$cursor" ]; then pointer=">"; else pointer=" "; fi
-    if [ "${selected[$i]}" = "1" ]; then check="[x]"; else check="[ ]"; fi
-    printf " %s %s %s\r\n" "$pointer" "$check" "${packages[$i]}"
-  done
-}
-
-old_stty=$(stty -g)
-stty raw -echo
-
-draw_menu
-
-while true; do
-  char=$(dd bs=1 count=1 2>/dev/null)
-  case "$char" in
-    $'\x1b')
-      dd bs=1 count=1 2>/dev/null  # [
-      arrow=$(dd bs=1 count=1 2>/dev/null)
-      case "$arrow" in
-        A) ((cursor > 0)) && ((cursor--)) || true ;;
-        B) ((cursor < total - 1)) && ((cursor++)) || true ;;
-      esac
-      ;;
-    k) ((cursor > 0)) && ((cursor--)) || true ;;
-    j) ((cursor < total - 1)) && ((cursor++)) || true ;;
-    " ")
-      if [ "${selected[$cursor]}" = "1" ]; then
-        selected[$cursor]="0"
-      else
-        selected[$cursor]="1"
-      fi
-      ;;
-    $'\r') break ;;  # Enter (carriage return in raw mode)
-  esac
-  draw_menu "redraw"
-done
-
-stty "$old_stty"
-echo ""
+multiselect stow_selected 1 "Select packages to stow" "${packages[@]}"
 
 # Ensure ~/.local/bin exists as a real directory so stow symlinks individual scripts
 mkdir -p "$HOME/.local/bin"
 
 # Stow selected packages (--restow for idempotency)
 stowed_zsh=false
-for i in "${!packages[@]}"; do
-  if [ "${selected[$i]}" = "1" ]; then
-    echo "Stowing ${packages[$i]}..."
-    stow --restow --target="$HOME" "${packages[$i]}"
-    if [ "${packages[$i]}" = "zsh" ]; then stowed_zsh=true; fi
-  fi
+for pkg in "${stow_selected[@]}"; do
+  echo "Stowing $pkg..."
+  stow --restow --target="$HOME" "$pkg"
+  if [ "$pkg" = "zsh" ]; then stowed_zsh=true; fi
 done
 
-# Copy zshrc template if zsh was stowed and ~/.zshrc doesn't exist
-if $stowed_zsh && ! [ -f "$HOME/.zshrc" ]; then
-  echo "Copying zshrc template to ~/.zshrc (edit for machine-specific config)"
-  cp "$HOME/dotfiles/templates/zshrc" "$HOME/.zshrc"
-elif $stowed_zsh && [ -f "$HOME/.zshrc" ]; then
-  echo "~/.zshrc already exists, skipping template copy"
+if $stowed_zsh; then
+  # The zsh config keeps its history in ~/.cache/zsh
+  mkdir -p "$HOME/.cache/zsh"
+  if ! [ -f "$HOME/.zshrc" ]; then
+    echo "Copying zshrc template to ~/.zshrc (edit for machine-specific config)"
+    cp "$HOME/dotfiles/templates/zshrc" "$HOME/.zshrc"
+  else
+    echo "~/.zshrc already exists, skipping template copy"
+  fi
 fi
 
 # =============================================================================
-# Step 4: Generate git user config
+# Step 5: Generate git user config
 # =============================================================================
 if ! [ -f "$HOME/.config/git/config.local" ]; then
   echo ""
@@ -171,16 +182,6 @@ EOF
 fi
 
 # =============================================================================
-# Step 5: Install starship prompt
-# =============================================================================
-if ! command -v starship &> /dev/null; then
-  echo "Installing starship..."
-  curl -sS https://starship.rs/install.sh | sh -s -- --yes
-else
-  echo "starship already installed."
-fi
-
-# =============================================================================
 # Step 6: Install fonts
 # =============================================================================
 echo "--- Installing fonts ---"
@@ -190,8 +191,8 @@ fc-cache -f "$HOME/.local/share/fonts" 2>/dev/null || true
 
 # =============================================================================
 # Step 7: Set zsh as default shell
-# =============================================================================
 # Check the passwd entry rather than $SHELL, which stays stale until re-login.
+# =============================================================================
 if [ "$(getent passwd "$USER" | cut -d: -f7)" != "$(command -v zsh)" ]; then
   echo "Setting zsh as default shell..."
   chsh -s "$(command -v zsh)"
@@ -207,7 +208,7 @@ if ! [ -s "$NVM_DIR/nvm.sh" ]; then
   echo "Installing nvm..."
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
 fi
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+\. "$NVM_DIR/nvm.sh"
 
 if ! command -v node &> /dev/null; then
   echo "Installing Node.js v25..."
@@ -218,8 +219,8 @@ fi
 
 # =============================================================================
 # Step 9: Install Rust
-# =============================================================================
 # Check ~/.cargo directly: it may not be on PATH in this non-interactive shell.
+# =============================================================================
 if ! [ -x "$HOME/.cargo/bin/rustc" ]; then
   echo "Installing Rust..."
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -229,34 +230,16 @@ fi
 source "$HOME/.cargo/env"
 
 # =============================================================================
-# Step 9: Install Neovim (latest from GitHub releases)
-# =============================================================================
-neovim_ok=
-if command -v nvim &> /dev/null; then
-  nvim_version=$(nvim --version 2>/dev/null | head -1 | sed -n 's/.*v\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\).*/\1 \2 \3/p')
-  read -r maj min pat <<< "$nvim_version"
-  vnum=$((maj*10000 + min*100 + pat))
-  if [ -n "$vnum" ] && [ "$vnum" -ge 1100 ]; then
-    neovim_ok=1
-    echo "Neovim already installed: $(nvim --version | head -1)"
-  fi
-fi
-if [ -z "$neovim_ok" ]; then
-  echo "Installing latest Neovim..."
-  NVIM_LATEST=$(curl -s https://api.github.com/repos/neovim/neovim/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
-  NVIM_URL="https://github.com/neovim/neovim/releases/download/${NVIM_LATEST}/nvim-linux-x86_64.tar.gz"
-  curl -Lo /tmp/nvim.tar.gz "$NVIM_URL"
-  sudo tar -xzf /tmp/nvim.tar.gz -C /opt/
-  rm -f /tmp/nvim.tar.gz
-  sudo ln -sf /opt/nvim-linux-x86_64/bin/nvim /usr/local/bin/nvim
-  echo "Neovim $(nvim --version | head -1) installed."
-fi
-
-# =============================================================================
-# Step 10: Install LunaVim
+# Step 10: Install Neovim and LunaVim
 # https://github.com/christopher-kapic/LunaVim
 # The executable is still `lvim` and the config still lives in ~/.config/lvim.
 # =============================================================================
+# Neovim comes from the latest GitHub release rather than apt (which lags
+# behind): nvim-update installs it to ~/.nvim and links ~/.local/bin/nvim.
+# Re-running it later upgrades in place.
+"$HOME/dotfiles/scripts/.local/bin/nvim-update"
+export PATH="$HOME/.nvim/bin:$PATH"
+
 LUNAVIM_INSTALLER_URL="https://raw.githubusercontent.com/christopher-kapic/LunaVim/master/scripts/install.sh"
 
 if [ -d "$HOME/.local/share/lunavim/.git" ]; then
@@ -280,90 +263,29 @@ fi
 echo ""
 echo "--- Optional packages ---"
 
-opt_packages=("tmux" "ffmpeg" "gh" "htop" "jq" "lazygit" "opencode" "claude-code" "openssh-server" "netbird")
+opt_packages=("tmux" "ffmpeg" "gh" "htop" "jq" "lazygit" "opencode" "claude-code" "openssh-server" "netbird" "no-sleep (laptop server)")
+multiselect opt_selected 0 "Select optional packages to install" "${opt_packages[@]}"
 
-# Selection state: all deselected by default
-opt_selected=()
-for i in "${!opt_packages[@]}"; do opt_selected+=("0"); done
-opt_cursor=0
-opt_total=${#opt_packages[@]}
-
-draw_opt_menu() {
-  if [ "$1" = "redraw" ]; then
-    printf "\033[%dA" "$((opt_total + 1))"
-  fi
-  printf "Select optional packages to install (↑/k up, ↓/j down, space toggle, enter confirm):\r\n"
-  for i in "${!opt_packages[@]}"; do
-    if [ "$i" -eq "$opt_cursor" ]; then pointer=">"; else pointer=" "; fi
-    if [ "${opt_selected[$i]}" = "1" ]; then check="[x]"; else check="[ ]"; fi
-    printf " %s %s %s\r\n" "$pointer" "$check" "${opt_packages[$i]}"
-  done
-}
-
-old_stty2=$(stty -g)
-stty raw -echo
-
-draw_opt_menu
-
-while true; do
-  char=$(dd bs=1 count=1 2>/dev/null)
-  case "$char" in
-    $'\x1b')
-      dd bs=1 count=1 2>/dev/null
-      arrow=$(dd bs=1 count=1 2>/dev/null)
-      case "$arrow" in
-        A) ((opt_cursor > 0)) && ((opt_cursor--)) || true ;;
-        B) ((opt_cursor < opt_total - 1)) && ((opt_cursor++)) || true ;;
-      esac
-      ;;
-    k) ((opt_cursor > 0)) && ((opt_cursor--)) || true ;;
-    j) ((opt_cursor < opt_total - 1)) && ((opt_cursor++)) || true ;;
-    " ")
-      if [ "${opt_selected[$opt_cursor]}" = "1" ]; then
-        opt_selected[$opt_cursor]="0"
-      else
-        opt_selected[$opt_cursor]="1"
-      fi
-      ;;
-    $'\r') break ;;
-  esac
-  draw_opt_menu "redraw"
-done
-
-stty "$old_stty2"
-echo ""
-
-# Install selected optional packages
 apt_pkgs=()
 install_gh=false
 install_lazygit=false
+install_opencode=false
+install_claude=false
 install_openssh=false
 install_netbird=false
+install_nosleep=false
 
-for i in "${!opt_packages[@]}"; do
-  if [ "${opt_selected[$i]}" = "1" ]; then
-    case "${opt_packages[$i]}" in
-      gh)          install_gh=true ;;
-      lazygit)     install_lazygit=true ;;
-      openssh-server) install_openssh=true ;;
-      netbird)     install_netbird=true ;;
-      opencode)
-        if [ -x "$HOME/.opencode/bin/opencode" ] || command -v opencode &> /dev/null; then
-          echo "OpenCode already installed."
-        else
-          echo "Installing OpenCode..."; curl -fsSL https://opencode.ai/install | bash
-        fi
-        ;;
-      claude-code)
-        if [ -x "$HOME/.local/bin/claude" ] || command -v claude &> /dev/null; then
-          echo "Claude Code already installed."
-        else
-          echo "Installing Claude Code..."; curl -fsSL https://claude.ai/install.sh | bash
-        fi
-        ;;
-      *)           apt_pkgs+=("${opt_packages[$i]}") ;;
-    esac
-  fi
+for pkg in "${opt_selected[@]}"; do
+  case "$pkg" in
+    gh)             install_gh=true ;;
+    lazygit)        install_lazygit=true ;;
+    opencode)       install_opencode=true ;;
+    claude-code)    install_claude=true ;;
+    openssh-server) install_openssh=true ;;
+    netbird)        install_netbird=true ;;
+    no-sleep*)      install_nosleep=true ;;
+    *)              apt_pkgs+=("$pkg") ;;
+  esac
 done
 
 if [ ${#apt_pkgs[@]} -gt 0 ]; then
@@ -389,12 +311,30 @@ if $install_lazygit; then
   if ! command -v lazygit &> /dev/null; then
     echo "Installing lazygit..."
     LAZYGIT_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | grep -Po '"tag_name": "v\K[^"]*')
-    curl -Lo /tmp/lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${LAZYGIT_VERSION}_Linux_x86_64.tar.gz"
+    curl -Lo /tmp/lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${LAZYGIT_VERSION}_Linux_${ARCH}.tar.gz"
     tar xf /tmp/lazygit.tar.gz -C /tmp lazygit
     sudo install /tmp/lazygit /usr/local/bin
     rm -f /tmp/lazygit /tmp/lazygit.tar.gz
   else
     echo "lazygit already installed."
+  fi
+fi
+
+if $install_opencode; then
+  if ! [ -x "$HOME/.opencode/bin/opencode" ] && ! command -v opencode &> /dev/null; then
+    echo "Installing OpenCode..."
+    curl -fsSL https://opencode.ai/install | bash
+  else
+    echo "OpenCode already installed."
+  fi
+fi
+
+if $install_claude; then
+  if ! [ -x "$HOME/.local/bin/claude" ] && ! command -v claude &> /dev/null; then
+    echo "Installing Claude Code..."
+    curl -fsSL https://claude.ai/install.sh | bash
+  else
+    echo "Claude Code already installed."
   fi
 fi
 
@@ -419,6 +359,27 @@ if $install_openssh; then
     fi
     chmod 700 "$HOME/.ssh"
     chmod 600 "$HOME/.ssh/authorized_keys"
+  fi
+
+  # Key-only auth via a drop-in. sshd uses the first value it sees and the
+  # sshd_config.d includes come first, so 00- wins over e.g. 50-cloud-init.conf.
+  # Only offered once a key is authorized, so this can't lock you out.
+  SSHD_HARDENING=/etc/ssh/sshd_config.d/00-dotfiles-hardening.conf
+  if [ -f "$SSHD_HARDENING" ]; then
+    echo "SSH already restricted to key-based auth."
+  elif [ -s "$HOME/.ssh/authorized_keys" ]; then
+    read -rp "Disable SSH password login and root login (key-based auth only)? [Y/n] " HARDEN_SSH
+    if ! [[ "$HARDEN_SSH" =~ ^[Nn] ]]; then
+      printf '%s\n' "PermitRootLogin no" "PasswordAuthentication no" "KbdInteractiveAuthentication no" \
+        | sudo tee "$SSHD_HARDENING" > /dev/null
+      if sudo sshd -t; then
+        sudo systemctl try-restart ssh
+        echo "SSH restricted to key-based auth."
+      else
+        sudo rm -f "$SSHD_HARDENING"
+        echo "Warning: sshd rejected the hardening config; left SSH settings unchanged."
+      fi
+    fi
   fi
 fi
 
@@ -446,6 +407,20 @@ if $install_netbird; then
   fi
 fi
 
+# Keep a laptop reachable over SSH with the lid closed: logind ignores the lid
+# switch and the sleep targets are masked so nothing can suspend the machine.
+if $install_nosleep; then
+  echo "Disabling suspend and lid-close sleep..."
+  sudo mkdir -p /etc/systemd/logind.conf.d
+  printf '%s\n' "[Login]" "HandleLidSwitch=ignore" "HandleLidSwitchExternalPower=ignore" "HandleLidSwitchDocked=ignore" \
+    | sudo tee /etc/systemd/logind.conf.d/00-dotfiles-no-sleep.conf > /dev/null
+  sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+  # Stop GNOME from trying to suspend on idle (no-op outside a GNOME session)
+  gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing' 2>/dev/null || true
+  gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-type 'nothing' 2>/dev/null || true
+  echo "Sleep disabled. The lid-switch setting takes effect after a reboot."
+fi
+
 # =============================================================================
 # Done!
 # =============================================================================
@@ -456,8 +431,9 @@ echo "============================================"
 echo ""
 echo "Summary:"
 echo "  - Dotfiles stowed"
+echo "  - Starship: installed via apt"
 echo "  - Zsh: default shell (log out and back in if just changed)"
-echo "  - Neovim: latest version installed"
+echo "  - Neovim: latest release in ~/.nvim (run nvim-update to upgrade)"
 echo "  - LunaVim: installed"
 echo "  - Node.js: installed via nvm"
 echo "  - Rust: installed via rustup"
