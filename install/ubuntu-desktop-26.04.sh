@@ -142,12 +142,73 @@ done
 
 multiselect stow_selected 1 "Select packages to stow" "${packages[@]}"
 
+# Existing files that would block stow (anything at a package's target path
+# that isn't already stow's own link into the dotfiles) are moved, after asking, into a
+# timestamped folder under ~/.dotfiles-backup, keeping their relative paths.
+STASH_DIR=
+# Usage: stash_paths <home> <path relative to home>...
+stash_paths() {
+  local home=$1 rel
+  shift
+  STASH_DIR=${STASH_DIR:-$home/.dotfiles-backup/$(date +%Y%m%d-%H%M%S)}
+  for rel in "$@"; do
+    mkdir -p "$STASH_DIR/$(dirname "$rel")"
+    mv "$home/$rel" "$STASH_DIR/$rel"
+  done
+  echo "Moved to $STASH_DIR"
+}
+# Usage: stash_conflicts <home> <package>. Returns 1 if the user declines, in
+# which case the package must not be stowed.
+stash_conflicts() {
+  local home=$1 pkg=$2 src rel target answer
+  local dir="$home/dotfiles/$pkg"
+  local conflicts=()
+  while IFS= read -r -d '' src; do
+    rel=${src#"$dir"/}
+    target="$home/$rel"
+    [ -e "$target" ] || [ -L "$target" ] || continue
+    # Stow only accepts its own (relative) links to the same file
+    if [ "$(readlink -f "$target")" = "$(readlink -f "$src")" ] &&
+       ! { [ -L "$target" ] && [[ "$(readlink "$target")" == /* ]]; }; then
+      continue
+    fi
+    conflicts+=("$rel")
+  done < <(find "$dir" \( -type f -o -type l \) -print0)
+  [ ${#conflicts[@]} -eq 0 ] && return 0
+  echo "These existing files conflict with the '$pkg' package:"
+  printf '  ~/%s\n' "${conflicts[@]}"
+  read -rp "Stash them in ~/.dotfiles-backup and stow '$pkg'? [Y/n] " answer
+  if [[ "$answer" =~ ^[Nn] ]]; then
+    echo "Skipping $pkg."
+    return 1
+  fi
+  stash_paths "$home" "${conflicts[@]}"
+}
+
+# Copy the zshrc template to ~/.zshrc (a per-machine file, not stowed), first
+# offering to stash an existing one that doesn't load the dotfiles zsh config.
+# Usage: install_zshrc <home>
+install_zshrc() {
+  local home=$1 answer
+  if [ -f "$home/.zshrc" ] && ! grep -q '\.config/zsh/\.zshrc' "$home/.zshrc"; then
+    read -rp "~/.zshrc doesn't load the dotfiles zsh config. Stash it and use the template? [Y/n] " answer
+    [[ "$answer" =~ ^[Nn] ]] || stash_paths "$home" .zshrc
+  fi
+  if [ -f "$home/.zshrc" ]; then
+    echo "~/.zshrc already exists, skipping template copy"
+  else
+    echo "Copying zshrc template to ~/.zshrc (edit for machine-specific config)"
+    cp "$home/dotfiles/templates/zshrc" "$home/.zshrc"
+  fi
+}
+
 # Ensure ~/.local/bin exists as a real directory so stow symlinks individual scripts
 mkdir -p "$HOME/.local/bin"
 
 # Stow selected packages (--restow for idempotency)
 stowed_zsh=false
 for pkg in "${stow_selected[@]}"; do
+  stash_conflicts "$HOME" "$pkg" || continue
   echo "Stowing $pkg..."
   stow --restow --target="$HOME" "$pkg"
   if [ "$pkg" = "zsh" ]; then stowed_zsh=true; fi
@@ -156,12 +217,7 @@ done
 if $stowed_zsh; then
   # The zsh config keeps its history in ~/.cache/zsh
   mkdir -p "$HOME/.cache/zsh"
-  if ! [ -f "$HOME/.zshrc" ]; then
-    echo "Copying zshrc template to ~/.zshrc (edit for machine-specific config)"
-    cp "$HOME/dotfiles/templates/zshrc" "$HOME/.zshrc"
-  else
-    echo "~/.zshrc already exists, skipping template copy"
-  fi
+  install_zshrc "$HOME"
 fi
 
 # =============================================================================
@@ -210,8 +266,8 @@ export PATH="$HOME/.local/bin:$PATH"
 eval "$(fnm env --shell bash)"
 
 # fnm install is a no-op (with a warning) if the version is already installed
-fnm install 25
-fnm default 25
+fnm install 26
+fnm default 26
 echo "Node.js installed: $(node --version)"
 
 # =============================================================================

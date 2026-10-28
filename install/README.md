@@ -2,6 +2,12 @@
 
 Installation scripts for bootstrapping new machines with Christopher Kapic's dotfiles and tools.
 
+## Existing config files
+
+Before stowing each package, every script checks for existing files at the package's target paths (anything that isn't already stow's own link into `~/dotfiles`). If there are any, it lists them and asks to move them into `~/.dotfiles-backup/<timestamp>/`, keeping their paths relative to `~`. If you decline, that package is skipped and the script carries on. An existing `~/.zshrc` that doesn't load `~/.config/zsh/.zshrc` gets the same offer before the template is copied in.
+
+All scripts install Node.js 26 with fnm and make it the default.
+
 ## Available Scripts
 
 ### macOS
@@ -47,6 +53,7 @@ Server setup script for Ubuntu 26.04 LTS. Must be run as root. Same flow and `--
 - starship is installed from apt, and Neovim is installed for the new user from the latest GitHub release with [`nvim-update`](#nvim-update).
 - SSH hardening goes in a drop-in file (`00-dotfiles-hardening.conf`) that takes priority over cloud-init's `50-cloud-init.conf`, and sshd validates it with `sshd -t` before restarting.
 - On a re-run for an existing user who already has authorized keys, pasting another key is optional.
+- The `starship` package is stowed along with the others.
 - It asks whether the machine is a laptop and, if so, disables sleep and lid-close suspend.
 - NetBird offers to connect whenever the machine isn't connected, including when NetBird was already installed.
 
@@ -80,7 +87,7 @@ bash ~/dotfiles/install/ubuntu-desktop-24.04.sh
 
 Interactive server hardening and setup script. Creates a new user, configures SSH (key-based auth only, no root login), sets up UFW firewall and fail2ban, installs latest Neovim from GitHub, installs LunaVim, and sets zsh as the default shell. Optionally installs NetBird at the end. Must be run as root.
 
-The SSH key prompt only accepts a valid public key; pasting a private key is rejected.
+The SSH key prompt only accepts a valid public key; pasting a private key is rejected. Both server scripts ask for a time zone (for example `America/Denver`) right after creating the user; press Enter to keep the current one.
 
 The script is idempotent: re-run it to add additional users. System-level setup (UFW, fail2ban, Neovim) is skipped on subsequent runs, SSH hardening is re-applied (it always produces the same config), and only per-user setup (dotfiles, fnm/Node, Rust, LunaVim) runs for the new user. If the user already has an authorized key, pasting another one is optional.
 

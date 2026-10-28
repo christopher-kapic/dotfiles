@@ -11,15 +11,16 @@ set -e
 #
 # Run as root on Ubuntu Server 26.04. It will:
 #   1. Create a new user with sudo access
-#   2. Configure SSH (key-based auth only, no root login)
-#   3. Set up UFW firewall
-#   4. Set up fail2ban for SSH brute-force protection
-#   5. Install zsh and starship from apt
-#   6. Clone dotfiles and set up stow and zshrc for the new user
-#   7. Install fnm/Node.js, Rust, Neovim (latest GitHub release) and LunaVim
+#   2. Set the time zone
+#   3. Configure SSH (key-based auth only, no root login)
+#   4. Set up UFW firewall
+#   5. Set up fail2ban for SSH brute-force protection
+#   6. Install zsh and starship from apt
+#   7. Clone dotfiles and set up stow and zshrc for the new user
+#   8. Install fnm/Node.js, Rust, Neovim (latest GitHub release) and LunaVim
 #      for the new user
-#   8. Optionally disable sleep / lid-close suspend (laptops used as servers)
-#   9. Optionally install and connect NetBird
+#   9. Optionally disable sleep / lid-close suspend (laptops used as servers)
+#   10. Optionally install and connect NetBird
 #
 # Flags:
 #   --workstation    Also install CLI tools useful for SSH-based development
@@ -99,7 +100,24 @@ fi
 USER_HOME=$(getent passwd "$NEW_USER" | cut -d: -f6)
 
 # =============================================================================
-# Step 2: Install base packages
+# Step 2: Set the time zone
+# =============================================================================
+echo ""
+echo "--- Time Zone ---"
+CURRENT_TZ=$(timedatectl show -p Timezone --value 2>/dev/null || echo unknown)
+while true; do
+  read -rp "Time zone (e.g. America/Denver), or press Enter to keep '$CURRENT_TZ': " NEW_TZ
+  [ -z "$NEW_TZ" ] && break
+  if timedatectl list-timezones | grep -qxF "$NEW_TZ"; then
+    timedatectl set-timezone "$NEW_TZ"
+    echo "Time zone set to $NEW_TZ."
+    break
+  fi
+  echo "Error: Unknown time zone '$NEW_TZ'. Run 'timedatectl list-timezones' to see the options."
+done
+
+# =============================================================================
+# Step 3: Install base packages
 # =============================================================================
 echo ""
 echo "--- Installing base packages ---"
@@ -110,7 +128,7 @@ apt-get install -y openssh-server ufw fail2ban python3-systemd zsh git curl wget
 apt-get install -y starship
 
 # =============================================================================
-# Step 3: Set up SSH key-based authentication
+# Step 4: Set up SSH key-based authentication
 # Disables password authentication and root login for security.
 # =============================================================================
 echo ""
@@ -160,7 +178,7 @@ systemctl try-restart ssh
 echo "SSH configured: root login disabled, password authentication disabled."
 
 # =============================================================================
-# Step 4: Ask about server purpose and configure UFW firewall
+# Step 5: Ask about server purpose and configure UFW firewall
 # UFW (Uncomplicated Firewall) blocks all incoming traffic except explicitly
 # allowed ports. SSH (port 22) is always allowed.
 # =============================================================================
@@ -226,7 +244,7 @@ else
 fi
 
 # =============================================================================
-# Step 5: Set up fail2ban for SSH brute-force protection
+# Step 6: Set up fail2ban for SSH brute-force protection
 # fail2ban monitors the journal and bans IPs that have too many failed login
 # attempts. We configure a 24-hour ban time for SSH.
 # =============================================================================
@@ -257,7 +275,7 @@ EOF
 fi
 
 # =============================================================================
-# Step 6: Set zsh as the default shell for the new user
+# Step 7: Set zsh as the default shell for the new user
 # =============================================================================
 echo ""
 echo "--- Zsh Setup ---"
@@ -269,7 +287,7 @@ else
 fi
 
 # =============================================================================
-# Step 7: Clone dotfiles and stow packages
+# Step 8: Clone dotfiles and stow packages
 # =============================================================================
 echo ""
 echo "--- Dotfiles Setup for '$NEW_USER' ---"
@@ -281,14 +299,75 @@ else
   echo "dotfiles already cloned."
 fi
 
+# Existing files that would block stow (anything at a package's target path
+# that isn't already stow's own link into the dotfiles) are moved, after asking, into a
+# timestamped folder under ~/.dotfiles-backup, keeping their relative paths.
+STASH_DIR=
+# Usage: stash_paths <home> <path relative to home>...
+stash_paths() {
+  local home=$1 rel
+  shift
+  STASH_DIR=${STASH_DIR:-$home/.dotfiles-backup/$(date +%Y%m%d-%H%M%S)}
+  for rel in "$@"; do
+    mkdir -p "$STASH_DIR/$(dirname "$rel")"
+    mv "$home/$rel" "$STASH_DIR/$rel"
+  done
+  echo "Moved to $STASH_DIR"
+}
+# Usage: stash_conflicts <home> <package>. Returns 1 if the user declines, in
+# which case the package must not be stowed.
+stash_conflicts() {
+  local home=$1 pkg=$2 src rel target answer
+  local dir="$home/dotfiles/$pkg"
+  local conflicts=()
+  while IFS= read -r -d '' src; do
+    rel=${src#"$dir"/}
+    target="$home/$rel"
+    [ -e "$target" ] || [ -L "$target" ] || continue
+    # Stow only accepts its own (relative) links to the same file
+    if [ "$(readlink -f "$target")" = "$(readlink -f "$src")" ] &&
+       ! { [ -L "$target" ] && [[ "$(readlink "$target")" == /* ]]; }; then
+      continue
+    fi
+    conflicts+=("$rel")
+  done < <(find "$dir" \( -type f -o -type l \) -print0)
+  [ ${#conflicts[@]} -eq 0 ] && return 0
+  echo "These existing files conflict with the '$pkg' package:"
+  printf '  ~/%s\n' "${conflicts[@]}"
+  read -rp "Stash them in ~/.dotfiles-backup and stow '$pkg'? [Y/n] " answer
+  if [[ "$answer" =~ ^[Nn] ]]; then
+    echo "Skipping $pkg."
+    return 1
+  fi
+  stash_paths "$home" "${conflicts[@]}"
+}
+
+# Copy the zshrc template to ~/.zshrc (a per-machine file, not stowed), first
+# offering to stash an existing one that doesn't load the dotfiles zsh config.
+# Usage: install_zshrc <home>
+install_zshrc() {
+  local home=$1 answer
+  if [ -f "$home/.zshrc" ] && ! grep -q '\.config/zsh/\.zshrc' "$home/.zshrc"; then
+    read -rp "~/.zshrc doesn't load the dotfiles zsh config. Stash it and use the template? [Y/n] " answer
+    [[ "$answer" =~ ^[Nn] ]] || stash_paths "$home" .zshrc
+  fi
+  if [ -f "$home/.zshrc" ]; then
+    echo "~/.zshrc already exists, skipping template copy"
+  else
+    echo "Copying zshrc template to ~/.zshrc (edit for machine-specific config)"
+    cp "$home/dotfiles/templates/zshrc" "$home/.zshrc"
+  fi
+}
+
 # Ensure ~/.local/bin exists as a real directory so stow symlinks individual
 # scripts, and ~/.cache/zsh exists for the zsh history file
 su - "$NEW_USER" -c 'mkdir -p "$HOME/.local/bin" "$HOME/.cache/zsh"'
 
 # Stow relevant packages for server use (skip alacritty, bettermouse, nvchad, fonts)
-STOW_PACKAGES="git shell zsh lvim scripts tmux"
+STOW_PACKAGES="git shell zsh starship lvim scripts tmux"
 for pkg in $STOW_PACKAGES; do
   if [ -d "$USER_HOME/dotfiles/$pkg" ]; then
+    stash_conflicts "$USER_HOME" "$pkg" || continue
     echo "Stowing $pkg..."
     su - "$NEW_USER" -c "cd \$HOME/dotfiles && stow --restow --target=\$HOME $pkg"
   fi
@@ -310,15 +389,16 @@ EOF
   echo "Git user config written to ~/.config/git/config.local"
 fi
 
-# Copy zshrc template if ~/.zshrc doesn't exist
-if ! [ -f "$USER_HOME/.zshrc" ]; then
-  echo "Copying zshrc template to ~/.zshrc..."
-  cp "$USER_HOME/dotfiles/templates/zshrc" "$USER_HOME/.zshrc"
-  chown "$NEW_USER:$NEW_USER" "$USER_HOME/.zshrc"
+install_zshrc "$USER_HOME"
+chown "$NEW_USER:$NEW_USER" "$USER_HOME/.zshrc"
+
+# This script runs as root, so hand any stashed files back to the user
+if [ -n "$STASH_DIR" ]; then
+  chown -R "$NEW_USER:$NEW_USER" "$USER_HOME/.dotfiles-backup"
 fi
 
 # =============================================================================
-# Step 8: Install fnm, Node.js, and Rust for the new user
+# Step 9: Install fnm, Node.js, and Rust for the new user
 # These are prerequisites for LunaVim. We run them as the new user so
 # they're installed in the user's home directory, not system-wide.
 # =============================================================================
@@ -330,7 +410,7 @@ echo "--- Installing fnm, Node.js, and Rust for '$NEW_USER' ---"
 su - "$NEW_USER" -c '"$HOME/dotfiles/scripts/.local/bin/fnm-update"'
 
 # fnm install is a no-op (with a warning) if the version is already installed
-su - "$NEW_USER" -c 'export PATH="$HOME/.local/bin:$PATH" && eval "$(fnm env --shell bash)" && fnm install 25 && fnm default 25'
+su - "$NEW_USER" -c 'export PATH="$HOME/.local/bin:$PATH" && eval "$(fnm env --shell bash)" && fnm install 26 && fnm default 26'
 
 if [ -x "$USER_HOME/.cargo/bin/rustc" ]; then
   echo "Rust already installed for '$NEW_USER'."
@@ -339,7 +419,7 @@ else
 fi
 
 # =============================================================================
-# Step 9: Install LunaVim for the new user
+# Step 10: Install LunaVim for the new user
 # LunaVim (https://github.com/christopher-kapic/LunaVim) is a Neovim
 # distribution descended from LunarVim. The executable is still `lvim` and the
 # config still lives in ~/.config/lvim.
@@ -369,7 +449,7 @@ else
 fi
 
 # =============================================================================
-# Step 10: Workstation CLI tools (optional, --workstation flag)
+# Step 11: Workstation CLI tools (optional, --workstation flag)
 # apt/binary tools are installed system-wide; opencode and claude-code are
 # per-user installs into the new user's home directory.
 # =============================================================================
@@ -422,7 +502,7 @@ if $WORKSTATION; then
 fi
 
 # =============================================================================
-# Step 11: Disable sleep (optional, for laptops used as servers)
+# Step 12: Disable sleep (optional, for laptops used as servers)
 # logind ignores the lid switch and the sleep targets are masked, so the
 # machine stays reachable with the lid closed.
 # =============================================================================
@@ -447,7 +527,7 @@ EOF
 fi
 
 # =============================================================================
-# Step 12: NetBird (optional)
+# Step 13: NetBird (optional)
 # The installer adds NetBird's apt repo and installs the netbird service.
 # =============================================================================
 echo ""
@@ -489,6 +569,7 @@ echo "============================================"
 echo ""
 echo "Summary:"
 echo "  - User '$NEW_USER' with sudo access"
+echo "  - Time zone: $(timedatectl show -p Timezone --value 2>/dev/null)"
 echo "  - SSH: key-based auth only, root login disabled"
 echo "  - UFW: firewall enabled (check 'ufw status' for open ports)"
 echo "  - fail2ban: 24h ban after 5 failed SSH attempts"

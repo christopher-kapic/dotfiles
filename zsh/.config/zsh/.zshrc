@@ -132,6 +132,7 @@ if command -v starship >/dev/null; then
     local group=$kube:$azure:$tf
     [[ $group == $_starship_cmd_group ]] && return
     _starship_cmd_group=$group
+    local before="$STARSHIP_KUBE_TEXT:$STARSHIP_AZURE_TEXT:$STARSHIP_TERRAFORM_TEXT"
     _starship_pill KUBE "${kube:+$(sh "$HOME/.config/starship/kube-context.sh" 2>/dev/null)}"
     _starship_pill AZURE "${azure:+$(sh "$HOME/.config/starship/azure-sub.sh" 2>/dev/null)}"
     if [[ -n $tf && -z $_starship_tf_version ]]; then
@@ -142,7 +143,11 @@ if command -v starship >/dev/null; then
     fi
     _starship_tf_version_shown=${tf:+$_starship_tf_version}
     _starship_terraform_export
-    zle reset-prompt
+    # Redraw only when a pill actually changed. A reset-prompt from this hook
+    # on a prompt's first redraw (group "" -> "::") leaves zle thinking the
+    # two-line prompt starts a line higher, so the next reset-prompt (e.g.
+    # the vi-mode switch on Esc) overwrites the last line of output.
+    [[ $before == "$STARSHIP_KUBE_TEXT:$STARSHIP_AZURE_TEXT:$STARSHIP_TERRAFORM_TEXT" ]] || zle reset-prompt
   }
   add-zle-hook-widget line-pre-redraw _starship_show_on_command
   # Clear show-on-command segments as soon as a command is submitted so they
